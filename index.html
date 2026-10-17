@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <!-- Scripts are locked to our own bundle. Inline styles are allowed because CodeMirror injects
+       its stylesheet via a <style> tag; with no script execution and no network (connect-src
+       'none'), inline CSS can't run code or send data anywhere. -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' file: data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Notes Viewer</title>
+  <link rel="stylesheet" href="node_modules/katex/dist/katex.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <aside id="sidebar" aria-label="Notes">
+    <div class="sidebar-top">
+      <span class="app-name">Notes</span>
+      <button id="theme-btn" class="icon-btn" type="button" title="Theme" aria-label="Theme"><span class="icon" data-icon="monitor"></span></button>
+      <button id="collapse-sidebar" class="icon-btn" type="button" title="Hide sidebar (Ctrl+\)" aria-label="Hide sidebar"><span class="icon" data-icon="panel"></span></button>
+    </div>
+    <div class="sidebar-head">
+      <label class="search-box">
+        <span class="icon" data-icon="search"></span>
+        <input id="search" type="search" placeholder="Search notes" autocomplete="off" spellcheck="false" aria-label="Search all notes (Ctrl+P)">
+      </label>
+      <button id="new-note" class="icon-btn" type="button" title="New note (Ctrl+N)" aria-label="New note"><span class="icon" data-icon="plus"></span></button>
+    </div>
+    <div id="result-info" class="muted small" hidden></div>
+    <ul id="list" role="listbox" aria-label="Notes"></ul>
+    <footer id="sidebar-footer">
+      <div class="folder-row">
+        <span class="icon" data-icon="folder"></span>
+        <span id="folder" class="small"></span>
+        <button id="change-folder" type="button" class="small">Change</button>
+      </div>
+    </footer>
+  </aside>
+  <div id="scrim" hidden></div>
+
+  <main id="main">
+    <header id="toolbar">
+      <button id="toggle-sidebar" class="icon-btn" type="button" title="Show sidebar (Ctrl+\)" aria-label="Show sidebar"><span class="icon" data-icon="menu"></span></button>
+      <div id="crumb"><span id="note-dir" class="muted"></span><span id="note-title"></span></div>
+      <span id="note-meta" class="small muted" title=""><span class="meta-main"></span><span class="meta-extra"></span></span>
+      <span id="save-status" class="small" aria-live="polite"></span>
+      <div class="tools note-only">
+        <button id="fav-btn" class="icon-btn" type="button" title="Add to favorites (Ctrl+D)" aria-label="Favorite"><span class="icon" data-icon="star"></span></button>
+        <button id="find-btn" class="icon-btn read-only" type="button" title="Find in note (Ctrl+F)" aria-label="Find in note"><span class="icon" data-icon="find"></span></button>
+        <button id="toc-btn" class="icon-btn read-only" type="button" title="Contents" aria-label="Table of contents"><span class="icon" data-icon="toc"></span></button>
+        <button id="mode-btn" class="read-only" type="button" title="Edit this note (Ctrl+E)"><span class="icon" data-icon="edit"></span><span class="label">Edit</span></button>
+        <button id="delete-btn" class="icon-btn danger read-only" type="button" title="Delete note" aria-label="Delete note"><span class="icon" data-icon="trash"></span></button>
+        <label class="check small edit-only" title="Save automatically every 10 seconds"><input id="autosave" type="checkbox"> Autosave</label>
+        <button id="cancel-btn" class="edit-only" type="button" title="Leave edit mode (Ctrl+E)"><span class="icon" data-icon="close"></span><span class="label">Done</span></button>
+        <button id="save-btn" class="edit-only primary-btn" type="button" title="Save (Ctrl+S)"><span class="icon" data-icon="save"></span><span class="label">Save</span></button>
+      </div>
+    </header>
+    <div id="progress" aria-hidden="true"><div id="progress-fill"></div></div>
+
+    <div id="formatbar" class="edit-only" role="toolbar" aria-label="Formatting">
+      <button type="button" data-cmd="bold" title="Bold (Ctrl+B)"><b>B</b></button>
+      <button type="button" data-cmd="italic" title="Italic (Ctrl+I)"><i>I</i></button>
+      <button type="button" data-cmd="strike" title="Strikethrough"><s>S</s></button>
+      <span class="sep"></span>
+      <button type="button" data-cmd="h1" title="Heading 1">H1</button>
+      <button type="button" data-cmd="h2" title="Heading 2">H2</button>
+      <button type="button" data-cmd="h3" title="Heading 3">H3</button>
+      <span class="sep"></span>
+      <button type="button" data-cmd="bullet" title="Bullet list"><span class="icon" data-icon="list"></span></button>
+      <button type="button" data-cmd="numbered" title="Numbered list"><span class="icon" data-icon="listOrdered"></span></button>
+      <button type="button" data-cmd="task" title="Task list"><span class="icon" data-icon="task"></span></button>
+      <button type="button" data-cmd="quote" title="Quote"><span class="icon" data-icon="quote"></span></button>
+      <span class="sep"></span>
+      <button type="button" data-cmd="code" title="Inline code"><span class="icon" data-icon="code"></span></button>
+      <button type="button" data-cmd="codeBlock" title="Code block"><span class="icon" data-icon="codeBlock"></span></button>
+      <button type="button" data-cmd="link" title="Link (Ctrl+K)"><span class="icon" data-icon="link"></span></button>
+      <button type="button" data-cmd="table" title="Table"><span class="icon" data-icon="table"></span></button>
+      <button type="button" data-cmd="hr" title="Divider"><span class="icon" data-icon="hr"></span></button>
+      <span class="muted small hint">Paste an image to add it</span>
+    </div>
+
+    <div id="findbar" hidden>
+      <span class="icon" data-icon="find"></span>
+      <input id="find-input" type="search" placeholder="Find in note" autocomplete="off" spellcheck="false" aria-label="Find in note">
+      <span id="find-count" class="muted small"></span>
+      <button id="find-prev" class="icon-btn" type="button" title="Previous (Shift+Enter)" aria-label="Previous match"><span class="icon" data-icon="up"></span></button>
+      <button id="find-next" class="icon-btn" type="button" title="Next (Enter)" aria-label="Next match"><span class="icon" data-icon="down"></span></button>
+      <button id="find-close" class="icon-btn" type="button" title="Close (Esc)" aria-label="Close find"><span class="icon" data-icon="close"></span></button>
+    </div>
+
+    <div id="banner" hidden>
+      <span id="banner-text"></span>
+      <button id="banner-reload" type="button" class="small">Reload from disk</button>
+      <button id="banner-dismiss" type="button" class="small">Keep my edits</button>
+    </div>
+
+    <div id="body">
+      <section id="welcome" hidden>
+        <h1>Notes Viewer</h1>
+        <p>Pick the folder that holds your markdown notes. It will be remembered.</p>
+        <button id="choose-folder" type="button" class="primary-btn">Choose notes folder</button>
+      </section>
+      <p id="empty" class="muted" hidden></p>
+
+      <div id="reader" hidden>
+        <article id="note-body" class="markdown"></article>
+      </div>
+
+      <div id="editor-wrap" hidden>
+        <div id="editor"></div>
+      </div>
+
+      <nav id="toc" aria-label="Table of contents" hidden>
+        <div class="toc-head small muted">Contents</div>
+        <ul id="toc-list"></ul>
+      </nav>
+    </div>
+  </main>
+
+  <div id="toast" role="status" hidden></div>
+  <script src="renderer.bundle.js"></script>
+</body>
+</html>

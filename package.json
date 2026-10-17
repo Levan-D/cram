@@ -1,0 +1,67 @@
+{
+  "name": "notes-viewer",
+  "productName": "Notes Viewer",
+  "version": "1.4.0",
+  "description": "Markdown notes viewer & editor.",
+  "private": true,
+  "type": "module",
+  "main": "main.js",
+  "scripts": {
+    "build:renderer": "esbuild src/main.js --bundle --minify --format=iife --target=chrome130 --outfile=renderer.bundle.js && esbuild src/mermaid-entry.js --bundle --minify --format=iife --target=chrome130 --outfile=mermaid.bundle.js --log-level=warning",
+    "start": "npm run build:renderer && electron .",
+    "dist": "npm run build:renderer && electron-builder --win portable",
+    "icon": "electron scripts/make-icon.mjs"
+  },
+  "dependencies": {
+    "highlight.js": "11.12.0",
+    "katex": "0.18.11",
+    "marked": "18.1.1",
+    "marked-highlight": "2.2.4",
+    "marked-katex-extension": "5.1.13"
+  },
+  "devDependencies": {
+    "@codemirror/commands": "6.11.1",
+    "@codemirror/lang-markdown": "6.5.2",
+    "@codemirror/language": "6.13.1",
+    "@codemirror/language-data": "6.5.2",
+    "@codemirror/search": "6.7.2",
+    "@codemirror/state": "6.7.6",
+    "@codemirror/view": "6.43.14",
+    "@lezer/highlight": "1.2.5",
+    "codemirror": "6.0.2",
+    "electron": "44.8.0",
+    "electron-builder": "26.15.3",
+    "esbuild": "0.28.2",
+    "mermaid": "12.2.0",
+    "minisearch": "7.2.0"
+  },
+  "build": {
+    "appId": "local.notes-viewer",
+    "productName": "Notes Viewer",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.cjs",
+      "index.html",
+      "renderer.bundle.js",
+      "mermaid.bundle.js",
+      "style.css",
+      "assets/icon.png",
+      "package.json",
+      "!**/node_modules/**/*.{md,d.ts,map,umd.js}",
+      "!**/node_modules/**/{bin,man}/**"
+    ],
+    "electronLanguages": [
+      "en-US"
+    ],
+    "win": {
+      "target": "portable",
+      "icon": "assets/icon.png"
+    },
+    "portable": {
+      "artifactName": "NotesViewer-${version}-portable.exe"
+    }
+  }
+}

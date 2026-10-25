@@ -1,3 +1,7 @@
 dist-build/
 renderer.bundle.js
 mermaid.bundle.js
+emoji.bundle.js
+coverage/
+test-results/
+playwright-report/

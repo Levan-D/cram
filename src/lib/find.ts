@@ -1,29 +1,39 @@
 // Find-in-note using the CSS Custom Highlight API: highlights text ranges without touching
 // the rendered DOM, so it can't break links or code blocks.
-import { termsRegex } from './search.js';
+import { termsRegex } from './search';
 
-const supported = typeof CSS !== 'undefined' && 'highlights' in CSS;
+const supported = () => typeof CSS !== 'undefined' && 'highlights' in CSS;
 
-export function createFinder(container) {
-  let ranges = [];
+export interface Finder {
+  run(query: { text?: string; words?: string[] | null }): number;
+  clear(): void;
+  next(): void;
+  prev(): void;
+  readonly count: number;
+  readonly index: number;
+}
+
+export function createFinder(getContainer: () => HTMLElement | null): Finder {
+  let ranges: Range[] = [];
   let current = -1;
 
   function clear() {
     ranges = [];
     current = -1;
-    if (supported) { CSS.highlights.delete('find'); CSS.highlights.delete('find-current'); }
+    if (supported()) { CSS.highlights.delete('find'); CSS.highlights.delete('find-current'); }
   }
 
   // Either a literal string (find bar) or a list of whole words (from a notes search).
-  function run({ text = '', words = null } = {}) {
+  function run({ text = '', words = null }: { text?: string; words?: string[] | null }) {
     clear();
+    const container = getContainer();
     const re = words?.length
       ? termsRegex(words)
       : text.trim() ? new RegExp(text.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'giu') : null;
-    if (!re || !supported) return 0;
+    if (!re || !container || !supported()) return 0;
 
     const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
-    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    for (let node = walker.nextNode() as Text | null; node; node = walker.nextNode() as Text | null) {
       for (const m of node.data.matchAll(re)) {
         if (!m[0]) continue;
         const r = new Range();
@@ -36,12 +46,12 @@ export function createFinder(container) {
     return ranges.length;
   }
 
-  function go(step) {
+  function go(step: number) {
     if (!ranges.length) return;
     current = (current + step + ranges.length) % ranges.length;
-    CSS.highlights.set('find-current', new Highlight(ranges[current]));
-    const el = ranges[current].startContainer.parentElement;
-    el?.scrollIntoView({ block: 'center', behavior: 'instant' });
+    const range = ranges[current]!;
+    CSS.highlights.set('find-current', new Highlight(range));
+    range.startContainer.parentElement?.scrollIntoView({ block: 'center', behavior: 'instant' });
   }
 
   return {

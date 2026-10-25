@@ -2,11 +2,16 @@
 // "Google-ish": every word must match (AND), the word being typed matches as a prefix,
 // and typo tolerance only kicks in for longer words so short queries stay strict.
 import MiniSearch from 'minisearch';
+import type { NoteListItem } from '../api';
 
-const headingsOf = (text) => (text.match(/^#{1,6}\s+.+$/gm) || []).map((h) => h.replace(/^#+\s+/, '')).join('\n');
+export type SearchIndex = MiniSearch<{ path: string }>;
+export interface SearchHit { path: string; score: number; terms: string[] }
+export interface SnippetPart { text: string; mark: boolean }
 
-export function buildIndex(notes) {
-  const index = new MiniSearch({
+const headingsOf = (text: string) => (text.match(/^#{1,6}\s+.+$/gm) || []).map((h) => h.replace(/^#+\s+/, '')).join('\n');
+
+export function buildIndex(notes: NoteListItem[]): SearchIndex {
+  const index: SearchIndex = new MiniSearch({
     idField: 'path',
     fields: ['title', 'headings', 'text'],
     storeFields: ['path'],
@@ -22,13 +27,12 @@ export function buildIndex(notes) {
   return index;
 }
 
-// -> [{ path, score, terms }] where terms are the actual words in the note that matched.
-export function search(index, query) {
-  return index.search(query).map((r) => ({ path: r.id, score: r.score, terms: r.terms }));
+export function search(index: SearchIndex, query: string): SearchHit[] {
+  return index.search(query).map((r) => ({ path: String(r.id), score: r.score, terms: r.terms }));
 }
 
 // Regex that matches any of the given whole words (letters/digits aware, case-insensitive).
-export function termsRegex(terms) {
+export function termsRegex(terms: string[]): RegExp | null {
   const alts = [...new Set(terms)]
     .filter(Boolean)
     .sort((a, b) => b.length - a.length)
@@ -37,8 +41,8 @@ export function termsRegex(terms) {
   return new RegExp(`(?<![\\p{L}\\p{N}])(?:${alts.join('|')})(?![\\p{L}\\p{N}])`, 'giu');
 }
 
-// A short plain-text excerpt around the first match, as DOM nodes with <mark>s (no innerHTML).
-export function snippetNodes(text, terms, radius = 70) {
+// A short plain-text excerpt around the first match, split into marked / unmarked parts.
+export function snippetParts(text: string, terms: string[], radius = 70): SnippetPart[] {
   const plain = text
     .replace(/```[\s\S]*?```/g, ' ')
     .replace(/[#>*_`|[\]]+/g, ' ')
@@ -46,20 +50,18 @@ export function snippetNodes(text, terms, radius = 70) {
     .trim();
   const re = termsRegex(terms);
   const first = re ? plain.search(re) : -1;
-  if (first < 0) return [];
+  if (!re || first < 0) return [];
   const start = Math.max(0, first - radius);
   const end = Math.min(plain.length, first + radius * 2);
   const slice = (start ? '…' : '') + plain.slice(start, end) + (end < plain.length ? '…' : '');
 
-  const nodes = [];
+  const parts: SnippetPart[] = [];
   let last = 0;
-  for (const m of slice.matchAll(termsRegex(terms))) {
-    if (m.index > last) nodes.push(document.createTextNode(slice.slice(last, m.index)));
-    const mark = document.createElement('mark');
-    mark.textContent = m[0];
-    nodes.push(mark);
+  for (const m of slice.matchAll(re)) {
+    if (m.index > last) parts.push({ text: slice.slice(last, m.index), mark: false });
+    parts.push({ text: m[0], mark: true });
     last = m.index + m[0].length;
   }
-  if (last < slice.length) nodes.push(document.createTextNode(slice.slice(last)));
-  return nodes;
+  if (last < slice.length) parts.push({ text: slice.slice(last), mark: false });
+  return parts;
 }

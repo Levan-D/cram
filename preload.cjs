@@ -18,7 +18,20 @@ contextBridge.exposeInMainWorld('notesApi', {
   saveNote: (relPath, content, baseMtimeMs, opts) => ipcRenderer.invoke('save-note', relPath, content, baseMtimeMs, opts),
   setFavorite: (relPath, on) => ipcRenderer.invoke('set-favorite', relPath, on),
   saveImage: (relPath, bytes, ext) => ipcRenderer.invoke('save-image', relPath, bytes, ext),
+  listImages: (relPath) => ipcRenderer.invoke('list-images', relPath),
+  addImages: (relPath, files) => ipcRenderer.invoke('add-images', relPath, files),
+  browseImages: (relPath) => ipcRenderer.invoke('browse-images', relPath),
+  revealImages: (relPath) => ipcRenderer.invoke('reveal-images', relPath),
   copyText: (text) => ipcRenderer.invoke('copy-text', text),
+  renameNote: (relPath) => ipcRenderer.invoke('rename-note', relPath),
+  revealNote: (relPath) => ipcRenderer.invoke('reveal-note', relPath),
+  openInVSCode: (relPath) => ipcRenderer.invoke('open-in-vscode', relPath),
+  editAction: (action, arg) => ipcRenderer.invoke('edit-action', action, arg),
+  revealFolder: (relDir) => ipcRenderer.invoke('reveal-folder', relDir),
+  openFolderInVSCode: (relDir) => ipcRenderer.invoke('open-folder-in-vscode', relDir),
+  setFolderColor: (relDir, color) => ipcRenderer.invoke('set-folder-color', relDir, color),
+  quizLoad: (scope, relPath) => ipcRenderer.invoke('quiz-load', scope, relPath),
+  quizLog: (entry) => ipcRenderer.invoke('quiz-log', entry),
   createNote: () => ipcRenderer.invoke('create-note'),
   deleteNote: (relPath) => ipcRenderer.invoke('delete-note', relPath),
   confirmDiscard: (title) => ipcRenderer.invoke('confirm-discard', title),
@@ -29,4 +42,10 @@ contextBridge.exposeInMainWorld('notesApi', {
   onChanged: on('notes-changed'),
   // cb() when the user closes the window with unsaved changes.
   onRequestClose: on('request-close'),
+  // cb('back' | 'forward') from the mouse side buttons.
+  onNav: on('nav'),
+  // cb({ x, y, editable, misspelled, suggestions, canCut, … }) on right-click in text: the page draws the menu.
+  onEditMenu: on('edit-menu'),
+  // cb() after a quiz file next to the notes folder changes (debounced).
+  onQuizzesChanged: on('quizzes-changed'),
 });

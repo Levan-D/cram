@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "es2023",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "lib": ["es2023", "dom", "dom.iterable"],
+    "types": ["vitest/globals", "@testing-library/jest-dom/vitest"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noEmit": true,
+    "allowJs": false,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "test/**/*.ts", "test/**/*.tsx", "quiz-format.d.ts", "vitest.config.ts"],
+  "exclude": ["node_modules", "e2e"]
+}

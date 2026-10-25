@@ -1,5 +1,5 @@
 // Inline SVG icons (24×24, stroke = currentColor). Hand-drawn in the style of Lucide.
-const svg = (body) =>
+const svg = (body: string): string =>
   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
 
 export const icons = {
@@ -20,6 +20,10 @@ export const icons = {
   sun: svg('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'),
   moon: svg('<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/>'),
   monitor: svg('<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>'),
+  autosave: svg('<path d="M20 12a8 8 0 1 1-2.3-5.6L20 8.7"/><path d="M20 4v4.7h-4.7"/><path d="M12 8v4l2.5 1.5"/>'),
+  back: svg('<path d="m15 18-6-6 6-6"/>'),
+  forward: svg('<path d="m9 18 6-6-6-6"/>'),
+  more: svg('<circle cx="5" cy="12" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="19" cy="12" r="1.3" fill="currentColor"/>'),
   close: svg('<path d="M18 6 6 18M6 6l12 12"/>'),
   star: svg('<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9Z"/>'),
   starFilled: svg('<path fill="currentColor" d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9Z"/>'),
@@ -33,13 +37,22 @@ export const icons = {
   code: svg('<path d="m8 7-5 5 5 5M16 7l5 5-5 5"/>'),
   codeBlock: svg('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="m10 10-2 2 2 2M14 10l2 2-2 2"/>'),
   link: svg('<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>'),
+  image: svg('<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m21 16-5-5-9 9"/>'),
+  upload: svg('<path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/>'),
+  smile: svg('<circle cx="12" cy="12" r="9"/><path d="M8.5 14a4.5 4.5 0 0 0 7 0"/><path d="M9 9.5h.01M15 9.5h.01" stroke-width="2.6"/>'),
   table: svg('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M12 4v16"/>'),
+  quiz: svg('<path d="M9 7.5a3 3 0 1 1 4.2 2.8c-.8.4-1.2 1-1.2 1.9V13"/><path d="M12 16.5h.01" stroke-width="2.6"/><rect x="3" y="2.5" width="18" height="19" rx="3"/>'),
+  play: svg('<path d="M7 4.5v15l12.5-7.5Z"/>'),
+  clock: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+  alert: svg('<path d="M10.3 3.9 2.2 18a2 2 0 0 0 1.7 3h16.2a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/>'),
+  retry: svg('<path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><path d="M3 3v5h5"/>'),
+  half: svg('<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor"/>'),
+  cut: svg('<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.1 8.1 20 20M8.1 15.9 20 4"/>'),
+  paste: svg('<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>'),
+  selectAll: svg('<path d="M5 3a2 2 0 0 0-2 2M19 3a2 2 0 0 1 2 2M21 19a2 2 0 0 1-2 2M5 21a2 2 0 0 1-2-2M9 3h1M14 3h1M9 21h1M14 21h1M3 9v1M21 9v1M3 14v1M21 14v1"/><rect x="8" y="8" width="8" height="8" rx="1"/>'),
+  spell: svg('<path d="m4 15 4-10 4 10M5.5 11.5h5"/><path d="m13 17 3 3 5-6"/>'),
+  minimize: svg('<path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/>'),
   hr: svg('<path d="M3 12h18"/><path d="M6 7h12M6 17h12" opacity=".35"/>'),
-};
+} satisfies Record<string, string>;
 
-// Fill every <span class="icon" data-icon="name"> under root.
-export function mountIcons(root = document) {
-  root.querySelectorAll('.icon[data-icon]').forEach((el) => {
-    el.innerHTML = icons[el.dataset.icon] || '';
-  });
-}
+export type IconName = keyof typeof icons;

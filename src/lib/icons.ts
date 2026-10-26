@@ -53,6 +53,15 @@ export const icons = {
   spell: svg('<path d="m4 15 4-10 4 10M5.5 11.5h5"/><path d="m13 17 3 3 5-6"/>'),
   minimize: svg('<path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/>'),
   hr: svg('<path d="M3 12h18"/><path d="M6 7h12M6 17h12" opacity=".35"/>'),
+  tomato: svg('<path d="M12 8c-5.2 0-8.5 3-8.5 6.8C3.5 18.4 7.3 21 12 21s8.5-2.6 8.5-6.2C20.5 11 17.2 8 12 8Z"/><path d="M12 8V4.5"/><path d="M12 8c-1.3-2.2-3.6-2.8-5.5-2.2 1.4 1.1 3.2 2 5.5 2.2Zm0 0c1.3-2.2 3.6-2.8 5.5-2.2-1.4 1.1-3.2 2-5.5 2.2Z"/>'),
+  settings: svg('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/>'),
+  calendar: svg('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 17.5h.01M12 17.5h.01" stroke-width="2.4"/>'),
+  pdf: svg('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5"/><path d="M12 11v6M9.5 14.5 12 17l2.5-2.5"/>'),
+  flag: svg('<path d="M5 21V4"/><path d="M5 4h11l-2 4 2 4H5"/><path d="M19.5 6.5v.01" stroke-width="2.6"/>'),
+  pause: svg('<path d="M8 5v14M16 5v14" stroke-width="2.6"/>'),
+  skip: svg('<path d="M6 5v14l9-7Z"/><path d="M18 5v14"/>'),
+  stop: svg('<rect x="6" y="6" width="12" height="12" rx="2"/>'),
+  sound: svg('<path d="M4 10v4h3l5 4V6L7 10Z"/><path d="M15.5 9.5a3.5 3.5 0 0 1 0 5M18 7a7 7 0 0 1 0 10"/>'),
 } satisfies Record<string, string>;
 
 export type IconName = keyof typeof icons;

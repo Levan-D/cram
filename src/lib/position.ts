@@ -43,6 +43,24 @@ export function readerTopLine(reader: HTMLElement, body: HTMLElement, source: st
   return lineAt(measure(body), reader.getBoundingClientRect().top + 1, body.getBoundingClientRect().bottom, lineCount(source));
 }
 
+// The block layout in content coordinates (independent of scrolling), plus the reader's size,
+// so a later reflow (resize, panel toggled) can be noticed and the line that *was* at the top
+// recovered from the pixel offset, which a reflow doesn't change.
+export interface Layout { marks: Mark[]; bottom: number; lastLine: number; width: number; height: number }
+
+export function snapshotLayout(reader: HTMLElement, body: HTMLElement, source: string): Layout {
+  const shift = reader.scrollTop - reader.getBoundingClientRect().top;
+  return {
+    marks: measure(body).map((m) => ({ line: m.line, top: m.top + shift })),
+    bottom: body.getBoundingClientRect().bottom + shift,
+    lastLine: lineCount(source),
+    width: reader.clientWidth,
+    height: reader.scrollHeight,
+  };
+}
+export const layoutChanged = (l: Layout, reader: HTMLElement) => l.width !== reader.clientWidth || l.height !== reader.scrollHeight;
+export const lineInLayout = (l: Layout, scrollTop: number) => lineAt(l.marks, scrollTop + 1, l.bottom, l.lastLine);
+
 export function scrollReaderToLine(reader: HTMLElement, body: HTMLElement, source: string, x: number) {
   const marks = measure(body);
   if (!marks.length || x <= 0) { reader.scrollTop = 0; return; }

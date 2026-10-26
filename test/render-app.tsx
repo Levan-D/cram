@@ -6,12 +6,15 @@ import { vi, type Mock } from 'vitest';
 import { App } from '../src/ui/App';
 import { useApp, initialState } from '../src/store';
 import { useQuiz } from '../src/quiz';
+import { usePomo, stop as stopPomodoro } from '../src/pomodoro';
 import { fakeApi } from './fake-api';
 import { fakeEditor } from './fake-editor';
 
 export async function renderApp(opts: Parameters<typeof fakeApi>[0] = {}) {
   useApp.setState(initialState(), true);
   useQuiz.setState({ view: 'closed', shown: false, scope: null, data: null, run: null }, true);
+  stopPomodoro();
+  usePomo.setState({ open: false });
   localStorage.clear();
   document.body.className = 'booting';
   window.notesApi = fakeApi(opts);

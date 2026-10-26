@@ -45,14 +45,17 @@ export interface Store {
   meta: { pages: number; page: number; frac: number };
 
   drawerOpen: boolean;
+  unresolvedOpen: boolean;              // the "Unresolved" page covers the note column
+  settingsOpen: boolean;
   toast: { text: string; id: number } | null;
   imageDialogFor: string | null;        // note path while the image library is open
   emojiOpen: boolean;
 }
 
 export const DEFAULT_PREFS: AppState = {
+  version: '',
   root: null, lastNote: null, sidebarCollapsed: false, autosave: true, zoom: 1, theme: 'system',
-  favorites: [], folderColors: {}, quiz: null,
+  favorites: [], folderColors: {}, quiz: null, pomodoro: null,
 };
 
 export const initialState = (): Store => ({
@@ -83,6 +86,8 @@ export const initialState = (): Store => ({
   find: { open: false, text: '', words: null, count: 0, index: -1 },
   meta: { pages: 1, page: 1, frac: 0 },
   drawerOpen: false,
+  unresolvedOpen: false,
+  settingsOpen: false,
   toast: null,
   imageDialogFor: null,
   emojiOpen: false,

@@ -128,8 +128,10 @@ describe('editing edge cases', () => {
     const { user, api } = await renderApp({ state: { lastNote: 'react.md' } });
     await ready('react');
     await user.click(screen.getByRole('button', { name: /edit/i }));
-    await user.click(screen.getByRole('button', { name: /autosave/i }));
+    await user.keyboard('{Control>},{/Control}'); // Settings → Autosave off
+    await user.click(within(screen.getByRole('group', { name: 'Autosave' })).getByRole('button', { name: 'Off' }));
     expect(api.setPref).toHaveBeenCalledWith('autosave', false);
+    await user.click(screen.getByRole('button', { name: 'Close' }));
     act(() => fakeEditor.type('x'));
     expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
   });

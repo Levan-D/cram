@@ -4,12 +4,16 @@ import { useEffect, useMemo, useRef, type CSSProperties } from 'react';
 import { useApp, rowsFor } from '../store';
 import { refs } from '../refs';
 import {
-  changeFolder, folderMenu, moveCursor, newNote, noteMenu, openFromList, setCollapsed, setDrawer,
-  setQuery, themeMenu, toggleFolder, THEME_INFO, NARROW,
+  folderMenu, moveCursor, newNote, noteMenu, openFromList, setCollapsed, setDrawer,
+  setQuery, toggleFolder, NARROW,
 } from '../actions';
+import { openSettings } from './Settings';
 import { snippetParts } from '../lib/search';
 import { Icon } from './Icon';
 import { QuizPill } from './QuizPill';
+import { Pomodoro } from './Pomodoro';
+import { UnresolvedButton } from './Unresolved';
+import { Activity } from './Activity';
 
 export function Sidebar() {
   const prefs = useApp((s) => s.prefs);
@@ -39,18 +43,15 @@ export function Sidebar() {
     rows?.[rows.length - 1]?.scrollIntoView({ block: 'nearest' });
   }, [currentPath]);
 
-  const theme = THEME_INFO[prefs.theme] || THEME_INFO.system;
-  const folderName = prefs.root ? prefs.root.split(/[\\/]/).pop() || prefs.root : '';
   let noteIndex = -1;
 
   return (
     <aside id="sidebar" aria-label="Notes">
       <div className="sidebar-top">
         <span className="app-name">Notes</span>
-        <button id="theme-btn" ref={(el) => { refs.themeBtn = el; }} className="icon-btn" type="button"
-          title={`${theme.title}. Click to change (Ctrl+Shift+L cycles)`} aria-label="Theme"
-          onClick={(e) => void themeMenu(e.currentTarget)}>
-          <Icon name={theme.icon} />
+        <UnresolvedButton />
+        <button id="settings-btn" className="icon-btn" type="button" title="Settings: theme, notes folder, autosave, zoom (Ctrl+,)" aria-label="Settings" onClick={openSettings}>
+          <Icon name="settings" />
         </button>
         <button id="collapse-sidebar" className="icon-btn" type="button" title="Hide sidebar (Ctrl+\)" aria-label="Hide sidebar"
           onClick={() => (NARROW() ? setDrawer(false) : setCollapsed(true))}>
@@ -119,11 +120,8 @@ export function Sidebar() {
       </ul>
       <QuizPill />
       <footer id="sidebar-footer">
-        <div className="folder-row">
-          <Icon name="folder" />
-          <span id="folder" className="small" title={prefs.root || ''}>{folderName}</span>
-          <button id="change-folder" type="button" className="small" onClick={() => void changeFolder()}>Change</button>
-        </div>
+        <Pomodoro />
+        <Activity />
       </footer>
     </aside>
   );

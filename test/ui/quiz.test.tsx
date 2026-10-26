@@ -205,7 +205,7 @@ describe('leaving and stopping', () => {
     await user.click(screen.getByRole('button', { name: /open in note/i }));
     expect(document.body).not.toHaveClass('quiz-open');
     const pill = () => document.getElementById('quiz-pill')!;
-    expect(pill()).toHaveTextContent('Quiz finished 2/4heaps');
+    expect(pill()).toHaveTextContent('Quiz finishedheaps');
     await user.click(within(pill()).getByRole('button', { name: /^quiz finished/i }));
     expect(screen.getByText('Results')).toBeInTheDocument();
 

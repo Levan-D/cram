@@ -112,6 +112,7 @@ export function showQuiz() {
   closeFindbar();
   setTocPopover(false);
   if (NARROW()) setDrawer(false);
+  useApp.setState({ unresolvedOpen: false });
   const r = get().run;
   set({ shown: true });
   if (get().view === 'question' && r && r.paused != null) patchRun({ ends: Date.now() + r.paused, paused: null });

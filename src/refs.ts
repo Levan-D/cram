@@ -14,7 +14,6 @@ export const refs = {
   findInput: null as HTMLInputElement | null,
   searchInput: null as HTMLInputElement | null,
   moreBtn: null as HTMLButtonElement | null,
-  themeBtn: null as HTMLButtonElement | null,
   emojiBtn: null as HTMLButtonElement | null,
 };
 

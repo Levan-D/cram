@@ -12,7 +12,7 @@ import { refs, finder } from './refs';
 import { buildIndex } from './lib/search';
 import { idHeadings, headingKey } from './lib/toc';
 import { ancestors } from './lib/tree';
-import { readerTopLine, scrollReaderToLine } from './lib/position';
+import { readerTopLine, scrollReaderToLine, snapshotLayout, layoutChanged, lineInLayout, type Layout } from './lib/position';
 import { enhanceNote } from './lib/extras';
 import { errMsg, pagesFor, WORDS_PER_PAGE } from './lib/text';
 import type { ImageItem } from './lib/editor';
@@ -25,6 +25,7 @@ const set = useApp.setState;
 export const NARROW = () => matchMedia(NARROW_QUERY).matches; // sidebar becomes a drawer
 export const WIDE = () => matchMedia(WIDE_QUERY).matches;     // contents docked left of the note
 export const AUTOSAVE_MS = 10_000;
+export const TOC_MAX_LEVEL = 3; // the contents panel lists h1–h3; deeper headings stay out of it
 export const FOLDER_COLORS: FolderColor[] = ['red', 'orange', 'yellow', 'green', 'teal', 'blue', 'purple', 'pink'];
 export const THEMES: Theme[] = ['system', 'light', 'dark'];
 export const THEME_INFO = {
@@ -168,9 +169,33 @@ function readTop() {
   const s = get();
   return refs.reader && refs.noteBody && s.current ? readerTopLine(refs.reader, refs.noteBody, s.current.source) : 0;
 }
+
+// The reader's block layout as of the last time we knew which line was at the top. A reflow
+// (window resized, a panel toggled, zoom) keeps the pixel offset but moves the lines; the
+// resize itself also fires a scroll event, so whichever of the scroll handler and the resize
+// observer runs first finds the old line here and puts it back.
+let layout: Layout | null = null;
+function snapshot() {
+  const s = get();
+  layout = refs.reader && refs.noteBody && s.current ? snapshotLayout(refs.reader, refs.noteBody, s.current.source) : null;
+}
+const reflowed = () => Boolean(layout && refs.reader && layoutChanged(layout, refs.reader));
+
 function scrollReadTo(line: number) {
   const s = get();
-  if (refs.reader && refs.noteBody && s.current) scrollReaderToLine(refs.reader, refs.noteBody, s.current.source, line);
+  if (!refs.reader || !refs.noteBody || !s.current) return;
+  scrollReaderToLine(refs.reader, refs.noteBody, s.current.source, line);
+  snapshot();
+}
+
+// After a reflow: the line that was at the top (from the old layout + the unchanged scrollTop)
+// goes back to the top.
+function restoreAfterReflow() {
+  const s = get();
+  if (!layout || !refs.reader || !s.current) return;
+  const line = lineInLayout(layout, refs.reader.scrollTop);
+  scrollReadTo(line);
+  posMemo[s.current.path] = Math.round(line * 100) / 100;
 }
 
 // The line at the top of whichever view is showing.
@@ -184,7 +209,11 @@ let posSaveTimer = 0;
 function rememberPos() {
   const s = get();
   if (!s.current || s.view !== 'note') return;
-  posMemo[s.current.path] = Math.round(currentLine() * 100) / 100;
+  if (s.mode === 'read' && reflowed()) restoreAfterReflow(); // a reflow's own scroll event, not you scrolling
+  else {
+    posMemo[s.current.path] = Math.round(currentLine() * 100) / 100;
+    if (s.mode === 'read') snapshot();
+  }
   clearTimeout(posSaveTimer);
   posSaveTimer = window.setTimeout(() => {
     const keys = Object.keys(posMemo);
@@ -200,8 +229,7 @@ export const schedulePos = () => { cancelAnimationFrame(posRaf); posRaf = reques
 export function keepReadingPlace() {
   const s = get();
   if (s.mode !== 'read' || s.view !== 'note' || !s.current) return;
-  const line = posMemo[s.current.path];
-  if (line) scrollReadTo(line);
+  if (reflowed()) restoreAfterReflow();
 }
 
 // ---------- back / forward ----------
@@ -271,6 +299,7 @@ export async function noteMenu(path: string, at: Element | { x: number; y: numbe
     { type: 'separator' },
     { id: 'reveal', label: 'Show in Explorer', icon: 'folder' },
     { id: 'vscode', label: 'Open in VS Code', icon: 'code' },
+    { id: 'pdf', label: 'Export as PDF…', icon: 'pdf' },
     { type: 'separator' },
     { id: 'delete', label: 'Delete…', icon: 'trash', danger: true },
   ], at);
@@ -280,7 +309,20 @@ export async function noteMenu(path: string, at: Element | { x: number; y: numbe
   else if (choice === 'quiz') void hooks.openQuiz('note', path);
   else if (choice === 'reveal') api.revealNote(path).catch((err) => toast(errMsg(err)));
   else if (choice === 'vscode') api.openInVSCode(path).catch((err) => toast(errMsg(err)));
+  else if (choice === 'pdf') void exportPdf(path);
   else if (choice === 'delete') void deleteNote(path);
+}
+
+// The main process prints the window, so the note has to be on screen in reading mode.
+export async function exportPdf(path: string) {
+  if (get().current?.path !== path && !(await openNote(path))) return;
+  if (get().mode === 'edit') { toast('Finish editing (Done) first, then export'); return; }
+  try {
+    const file = await api.exportPdf(path);
+    if (file) toast(`Saved ${file.split(/[\\/]/).pop()}`);
+  } catch (err) {
+    toast(`Export failed: ${errMsg(err)}`);
+  }
 }
 
 export async function folderMenu(dir: string, at: { x: number; y: number }) {
@@ -320,6 +362,7 @@ function showEmpty(message: string) {
 // Resolves true if the note was opened.
 export async function openNote(path: string, { query = '', terms = null as string[] | null, force = false, fromHistory = false } = {}) {
   hooks.hideQuiz(); // a running quiz minimizes into the sidebar box
+  set({ unresolvedOpen: false });
   const s = get();
   const switching = Boolean(s.current && s.current.path !== path);
   if ((switching || force) && !(await guardUnsaved())) return false;
@@ -373,7 +416,7 @@ export function renderReader(html: string, { keepScroll = false, line = 0 } = {}
   const target = keepScroll ? readTop() : line;
   refs.lastHtml = html;
   body.innerHTML = html;
-  refs.readHeadings = idHeadings(body);
+  refs.readHeadings = idHeadings(body).filter((h) => Number(h.tagName[1]) <= TOC_MAX_LEVEL); // (h4+ still get anchor ids)
   flushSync(() => set({ toc: refs.readHeadings.map((h) => ({ level: Number(h.tagName[1]), text: h.textContent || '' })), tocCurrent: 0 }));
   scrollReadTo(target);
   const settled = reader.scrollTop;
@@ -385,6 +428,7 @@ export function renderReader(html: string, { keepScroll = false, line = 0 } = {}
   void enhanceNote(body, { copyText: (t) => api.copyText(t) }).then(() => {
     if (refs.noteBody !== body) return;
     if (target && !get().find.open && reader.scrollTop === settled) scrollReadTo(target);
+    else snapshot(); // diagrams changed the height; that's the layout we're in now
     updateMeta();
     spyRead();
     if (get().find.open) runFind();
@@ -411,7 +455,7 @@ export function spyRead() {
 // Edit mode contents: headings straight from the markdown; clicking one jumps the editor there.
 export function buildEditToc() {
   if (get().mode !== 'edit' || !refs.editor) return;
-  refs.editHeadings = refs.editor.headings();
+  refs.editHeadings = refs.editor.headings().filter((h) => h.level <= TOC_MAX_LEVEL);
   set({ toc: refs.editHeadings.map((h) => ({ level: h.level, text: h.text.replace(/[*_`~]/g, '') })) });
   spyEdit();
 }
@@ -443,10 +487,39 @@ export function followLink(href: string) {
   else if (href.length > 1 && href.startsWith('#')) refs.noteBody?.querySelector(`[id="${CSS.escape(href.slice(1))}"]`)?.scrollIntoView({ block: 'start' });
 }
 
+// Open a note on a source line (from the Unresolved page) and flash the block it's in.
+export async function openNoteAtLine(path: string, line: number) {
+  if (!(await openNote(path))) return;
+  if (get().mode === 'edit') { refs.editor?.scrollToLine(line, { cursor: true }); return; }
+  if (!line) return;
+  scrollReadTo(line);
+  if (refs.reader) refs.reader.scrollTop -= 20; // a little context above
+  const blocks = [...(refs.noteBody?.querySelectorAll<HTMLElement>('[data-line]') ?? [])];
+  const block = blocks.filter((b) => Number(b.dataset.line) <= line).pop();
+  if (!block) return;
+  block.classList.remove('flash');
+  void block.offsetWidth; // restart the animation
+  block.classList.add('flash');
+  setTimeout(() => block.classList.remove('flash'), 1800);
+}
+
+// ---------- the "Unresolved" page ----------
+
+export function openUnresolved() {
+  hooks.hideQuiz();
+  closeFindbar();
+  setTocPopover(false);
+  if (NARROW()) setDrawer(false);
+  set({ unresolvedOpen: true });
+}
+export const closeUnresolved = () => set({ unresolvedOpen: false });
+export const toggleUnresolved = () => (get().unresolvedOpen ? closeUnresolved() : openUnresolved());
+
 export async function openNoteAtSection(path: string, section: string) {
   if (!(await openNote(path)) || get().mode !== 'read' || !section) return;
   const want = headingKey(section.split(' > ').pop() || '');
-  refs.readHeadings.find((h) => headingKey(h.textContent || '') === want)?.scrollIntoView({ block: 'start' });
+  const headings = [...(refs.noteBody?.querySelectorAll('h1, h2, h3, h4, h5, h6') ?? [])]; // any level, not just the contents
+  headings.find((h) => headingKey(h.textContent || '') === want)?.scrollIntoView({ block: 'start' });
 }
 
 // ---------- table of contents / sidebar ----------
@@ -506,12 +579,6 @@ export async function cycleTheme() {
   const next = THEMES[(THEMES.indexOf(get().prefs.theme || 'system') + 1) % THEMES.length]!;
   await setTheme(next);
   toast(THEME_INFO[next].title);
-}
-
-export async function themeMenu(anchor: Element) {
-  const theme = get().prefs.theme || 'system';
-  const choice = await showMenu(THEMES.map((t) => ({ id: t, label: THEME_INFO[t].label, icon: THEME_INFO[t].icon, checked: theme === t })), anchor);
-  if (choice) await setTheme(choice as Theme);
 }
 
 // ---------- find in note ----------

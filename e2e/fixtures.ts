@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 const APP_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 // A long note, so read ⇄ edit sync has room to scroll.
-const longNote = ['# Long note', '', 'Intro paragraph.', ''];
+const longNote = ['# Long note', '', 'Intro paragraph. ??? idk what this means', ''];
 for (let i = 1; i <= 30; i++) {
   longNote.push(`## Section ${i}`, '', ...Array.from({ length: 6 }, (_, k) => [`Paragraph ${i}.${k}: ${'lorem ipsum dolor sit amet '.repeat(6)}`, '']).flat());
 }
@@ -16,7 +16,7 @@ for (let i = 1; i <= 30; i++) {
 export const NOTES: Record<string, string> = {
   'long.md': longNote.join('\n'),
   'dsa/heaps.md': '# Heaps\n\nA heap is a complete binary tree. Heap heap heap.\n\n## Insert\n\nAdd at the end, then bubble up.\n\n## Remove\n\nMove the last one up, then sink it.\n',
-  'react.md': '# React\n\nKeys keep component state.\n',
+  'react.md': '# React\n\nKeys keep component state.\n\nTODO: write the reconciliation section\n',
 };
 
 export const HEAP_QUIZ = `---

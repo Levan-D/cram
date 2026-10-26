@@ -14,7 +14,9 @@ import { parseQuiz, compareSections, quizPathFor } from './quiz-format.js';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const INDEX_URL = pathToFileURL(path.join(here, 'index.html')).href;
 const ICON = path.join(here, 'assets', 'icon.png');
-const SUGGESTED_FOLDER = 'C:\\Users\\levan\\Desktop\\git-gud\\notes';
+const SUGGESTED_FOLDER = path.resolve(here, '..', '..', 'notes'); // the repo's notes/ when run from tools/notes-viewer
+// Our own version (app.getVersion() reports Electron's when the entry is a script, as in the e2e tests).
+const VERSION = (() => { try { return JSON.parse(fs.readFileSync(path.join(here, 'package.json'), 'utf8')).version || ''; } catch { return app.getVersion(); } })();
 const MAX_SEARCH_BYTES = 2 * 1024 * 1024; // don't load huge files into the search index
 
 // ---------- config (userData/config.json) ----------
@@ -612,6 +614,75 @@ function logQuiz(root, entry) {
   return true;
 }
 
+// ---------- study activity (for the heatmap and the daily sessions) ----------
+// quizzes/activity.json: { "2026-10-25": { "focus": 3, "sessions": 2 } }: finished Pomodoro
+// focus blocks and Pomodoro runs that got at least one block to the end, per local day.
+// Quizzes per day come from results.jsonl. Nothing else is recorded.
+
+const ACTIVITY = 'activity.json';
+const ACTIVITY_KINDS = ['focus', 'session'];
+const localDay = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const readActivity = (quizRoot) => {
+  try { const v = JSON.parse(fs.readFileSync(path.join(quizRoot, ACTIVITY), 'utf8')); return v && typeof v === 'object' ? v : {}; } catch { return {}; }
+};
+const dayCounts = (v) => ({ focus: Number(v?.focus) || 0, sessions: Number(v?.sessions) || 0 });
+
+function todayActivity(root) {
+  return dayCounts(readActivity(quizRootFor(root))[localDay()]);
+}
+
+// Returns today's counts after the bump.
+function bumpActivity(root, kind) {
+  if (!ACTIVITY_KINDS.includes(kind)) throw new Error('Unknown activity');
+  const quizRoot = quizRootFor(root);
+  fs.mkdirSync(quizRoot, { recursive: true });
+  const days = readActivity(quizRoot);
+  const day = localDay();
+  const key = kind === 'focus' ? 'focus' : 'sessions';
+  days[day] = { ...(days[day] || {}), [key]: (Number(days[day]?.[key]) || 0) + 1 };
+  fs.writeFileSync(path.join(quizRoot, ACTIVITY), JSON.stringify(days, null, 2) + '\n');
+  return dayCounts(days[day]);
+}
+
+function getActivity(root) {
+  const quizRoot = quizRootFor(root);
+  const days = {};
+  for (const [day, v] of Object.entries(readActivity(quizRoot))) {
+    if (/^\d{4}-\d\d-\d\d$/.test(day)) days[day] = { ...dayCounts(v), quizzes: 0 };
+  }
+  let text = '';
+  try {
+    const file = path.join(quizRoot, RESULTS);
+    if (fs.statSync(file).size <= MAX_RESULTS_BYTES) text = fs.readFileSync(file, 'utf8');
+  } catch { /* no quizzes taken yet */ }
+  for (const line of text.split('\n')) {
+    let run;
+    try { run = JSON.parse(line); } catch { continue; }
+    const at = new Date(run?.at);
+    if (Number.isNaN(at.getTime())) continue;
+    const day = localDay(at);
+    (days[day] ??= { focus: 0, sessions: 0, quizzes: 0 }).quizzes++;
+  }
+  return { days };
+}
+
+// ---------- export as PDF ----------
+// Prints the page as it is (print styles in style.css hide everything but the note).
+
+async function exportPdf(win, root, rel) {
+  const note = resolveInside(root, rel);
+  const { canceled, filePath } = await dialog.showSaveDialog(win, {
+    title: 'Export as PDF',
+    defaultPath: path.join(app.getPath('documents'), path.basename(note).replace(/\.md$/i, '') + '.pdf'),
+    filters: [{ name: 'PDF', extensions: ['pdf'] }],
+    properties: ['showOverwriteConfirmation'],
+  });
+  if (canceled || !filePath) return null;
+  const data = await win.webContents.printToPDF({ printBackground: true, pageSize: 'A4', margins: { top: 0.55, bottom: 0.55, left: 0.65, right: 0.65 } });
+  fs.writeFileSync(filePath, data);
+  return filePath;
+}
+
 // Quiz files are written by Claude while the app runs: tell the page, so an open start page
 // refreshes itself. (Only an existing quizzes folder is watched; one created later shows up
 // after a restart.)
@@ -649,6 +720,7 @@ function registerIpc(win) {
   });
 
   handle('get-state', () => ({
+    version: VERSION,
     root: config.root && fs.existsSync(config.root) ? config.root : null,
     lastNote: config.lastNote || null,
     sidebarCollapsed: Boolean(config.sidebarCollapsed),
@@ -658,9 +730,14 @@ function registerIpc(win) {
     favorites: config.root ? (config.favorites?.[config.root] || []) : [],
     folderColors: config.root ? (config.folderColors?.[config.root] || {}) : {},
     quiz: config.quiz || null,
+    pomodoro: config.pomodoro || null,
   }));
   handle('quiz-load', (scope, rel) => loadQuiz(requireRoot(), scope === 'note' ? 'note' : 'folder', rel));
   handle('quiz-log', (entry) => logQuiz(requireRoot(), entry));
+  handle('activity-bump', (kind) => bumpActivity(requireRoot(), kind));
+  handle('activity-today', () => todayActivity(requireRoot()));
+  handle('activity-get', () => getActivity(requireRoot()));
+  handle('export-pdf', (rel) => exportPdf(win, requireRoot(), rel));
 
   handle('pick-folder', async () => {
     const defaultPath = config.root || (fs.existsSync(SUGGESTED_FOLDER) ? SUGGESTED_FOLDER : undefined);
@@ -686,6 +763,10 @@ function registerIpc(win) {
       types: (Array.isArray(v?.types) ? v.types : []).filter((t) => ['single', 'multi', 'input', 'recall'].includes(t)),
       order: v?.order === 'weak' ? 'weak' : 'random',
     }),
+    pomodoro: (v) => {
+      const minutes = (x, min, max, dflt) => (Number.isFinite(Number(x)) ? Math.min(max, Math.max(min, Math.round(Number(x)))) : dflt);
+      return { focus: minutes(v?.focus, 5, 90, 25), shortBreak: minutes(v?.shortBreak, 1, 30, 5), longBreak: minutes(v?.longBreak, 5, 60, 10), cycles: minutes(v?.cycles, 1, 8, 3) };
+    },
   };
   handle('set-pref', (key, value) => {
     if (!PREFS[key]) throw new Error('Unknown setting');

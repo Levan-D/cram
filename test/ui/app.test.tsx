@@ -11,13 +11,12 @@ const openNote = async (user: Awaited<ReturnType<typeof renderApp>>['user'], tit
 };
 
 describe('sidebar', () => {
-  it('shows the folder tree with counts, and the folder name', async () => {
+  it('shows the folder tree with counts', async () => {
     await renderApp();
     const tree = list();
     expect(within(tree).getByText('dsa').closest('li')).toHaveAttribute('aria-expanded', 'true');
     expect(within(tree).getByText('dsa').parentElement!.querySelector('.count')).toHaveTextContent('2');
     expect(within(tree).getByText('heaps')).toBeInTheDocument();
-    expect(screen.getByText('notes', { selector: '#folder' })).toBeInTheDocument();
     expect(screen.getByText('Select a note.')).toBeVisible();
   });
 
@@ -61,7 +60,7 @@ describe('menus', () => {
     fireEvent.contextMenu(within(list()).getByText('react'), { clientX: 10, clientY: 10 });
     const menu = await screen.findByRole('menu');
     expect(within(menu).getAllByRole('menuitem').map((b) => b.textContent)).toEqual([
-      'Open', 'Add to favoritesCtrl+D', 'Rename / move…F2', 'Quiz this noteCtrl+Shift+Q', 'Show in Explorer', 'Open in VS Code', 'Delete…',
+      'Open', 'Add to favoritesCtrl+D', 'Rename / move…F2', 'Quiz this noteCtrl+Shift+Q', 'Show in Explorer', 'Open in VS Code', 'Export as PDF…', 'Delete…',
     ]);
     await user.click(within(menu).getByText('Add to favorites'));
     await waitFor(() => expect(api.setFavorite).toHaveBeenCalledWith('react.md', true));
@@ -78,22 +77,16 @@ describe('menus', () => {
   });
 
   it('closes on Esc and moves with the arrow keys', async () => {
-    const { user } = await renderApp();
-    await user.click(screen.getByRole('button', { name: 'Theme' }));
-    const items = within(await screen.findByRole('menu')).getAllByRole('menuitemradio');
-    expect(items.map((i) => i.textContent)).toEqual(['Follow system', 'Light', 'Dark']);
+    const { user } = await renderApp({ state: { lastNote: 'react.md' } });
+    await waitFor(() => expect(document.getElementById('note-title')).toHaveTextContent('react'));
+    await user.click(screen.getByRole('button', { name: 'More actions' }));
+    const items = within(await screen.findByRole('menu')).getAllByRole('menuitem');
+    expect(items[0]).toHaveTextContent('Add to favorites');
     await waitFor(() => expect(items[0]).toHaveFocus());
     await user.keyboard('{ArrowDown}');
     expect(items[1]).toHaveFocus();
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
-  });
-
-  it('switches the theme', async () => {
-    const { user, api } = await renderApp();
-    await user.click(screen.getByRole('button', { name: 'Theme' }));
-    await user.click(await screen.findByText('Dark'));
-    await waitFor(() => expect(api.setPref).toHaveBeenCalledWith('theme', 'dark'));
   });
 
   it('deletes only after the main process confirms', async () => {

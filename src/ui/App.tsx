@@ -6,10 +6,11 @@ import { useEffect } from 'react';
 import { api } from '../api';
 import { useApp } from '../store';
 import { useQuiz, openQuiz, showQuiz, quizzesChanged } from '../quiz';
+import { usePomo, fmtLeft, msLeft, refreshToday } from '../pomodoro';
 import {
-  AUTOSAVE_MS, autosaveTick, closeFindbar, cycleTheme, editMenu, enterEdit, exitEdit, focusSearch, goHistory,
+  AUTOSAVE_MS, autosaveTick, closeFindbar, closeUnresolved, cycleTheme, editMenu, enterEdit, exitEdit, focusSearch, goHistory,
   newNote, onDiskChange, openFindbar, renameNote, requestClose, rerenderForTheme, save, setDrawer, setTocPopover,
-  setZoom, start, toggleFavorite, toggleSidebar,
+  setZoom, start, toggleFavorite, toggleSidebar, toggleUnresolved,
 } from '../actions';
 import { refs } from '../refs';
 import { onThemeChange } from '../lib/extras';
@@ -20,6 +21,8 @@ import { Banner, FindBar, FormatBar, Progress } from './NoteBars';
 import { NoteArea } from './NoteArea';
 import { StatusBar, Toast } from './StatusBar';
 import { QuizPage } from './QuizPage';
+import { Unresolved } from './Unresolved';
+import { Settings, openSettings } from './Settings';
 import { ImageDialog } from './ImageDialog';
 import { EmojiPopover } from './EmojiPopover';
 import { MenuHost } from './Menu';
@@ -32,7 +35,7 @@ export function App() {
   // Load the folder once the layout exists (opening a note measures the reader / editor).
   // Transitions switch on only after the first render, so restoring state doesn't animate.
   useEffect(() => {
-    void start().finally(() => requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('booting'))));
+    void start().then(() => refreshToday()).finally(() => requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('booting'))));
   }, []);
   useBodyClasses();
   useWindowTitle();
@@ -53,8 +56,10 @@ export function App() {
         <NoteArea />
         <StatusBar />
         <QuizPage />
+        <Unresolved />
       </main>
       <ImageDialog />
+      <Settings />
       <EmojiPopover />
       <MenuHost />
       <AskHost />
@@ -70,6 +75,7 @@ function useBodyClasses() {
   const collapsed = useApp((s) => s.prefs.sidebarCollapsed);
   const drawerOpen = useApp((s) => s.drawerOpen);
   const quizShown = useQuiz((s) => s.shown);
+  const unresolvedOpen = useApp((s) => s.unresolvedOpen);
   useEffect(() => {
     const b = document.body.classList;
     b.toggle('has-note', view === 'note');
@@ -79,7 +85,8 @@ function useBodyClasses() {
     b.toggle('sidebar-collapsed', collapsed);
     b.toggle('drawer-open', drawerOpen);
     b.toggle('quiz-open', quizShown);
-  }, [view, mode, collapsed, drawerOpen, quizShown]);
+    b.toggle('unresolved-open', unresolvedOpen);
+  }, [view, mode, collapsed, drawerOpen, quizShown, unresolvedOpen]);
 
   const narrow = useMedia(NARROW_QUERY);
   useEffect(() => { setDrawer(false); }, [narrow]);
@@ -88,7 +95,11 @@ function useBodyClasses() {
 function useWindowTitle() {
   const title = useApp((s) => s.current?.title);
   const dirty = useApp((s) => s.dirty);
-  useEffect(() => { document.title = title ? `${dirty ? '• ' : ''}${title} - Notes Viewer` : 'Notes Viewer'; }, [title, dirty]);
+  const pomo = usePomo((s) => (s.phase ? fmtLeft(msLeft(s)) : '')); // the countdown shows in the taskbar too
+  useEffect(() => {
+    const base = title ? `${dirty ? '• ' : ''}${title} - Notes Viewer` : 'Notes Viewer';
+    document.title = pomo ? `🍅 ${pomo} · ${base}` : base;
+  }, [title, dirty, pomo]);
 }
 
 function useGlobalKeys() {
@@ -100,7 +111,7 @@ function useGlobalKeys() {
       const key = e.key.toLowerCase();
       const hasNote = Boolean(s.current);
       // The quiz page handles its own keys; only app-wide ones (search, sidebar, zoom, theme, new) pass.
-      const appWide = (mod && ['p', 'k', 'n', '\\', '=', '+', '-', '0'].includes(key)) || (mod && e.shiftKey && key === 'l');
+      const appWide = (mod && ['p', 'k', 'n', '\\', '=', '+', '-', '0', ','].includes(key)) || (mod && e.shiftKey && (key === 'l' || key === 'u'));
       if (useQuiz.getState().shown && !appWide) return;
       const zoom = s.prefs.zoom || 1;
 
@@ -135,6 +146,12 @@ function useGlobalKeys() {
       } else if (mod && e.shiftKey && key === 'l') {
         e.preventDefault();
         void cycleTheme();
+      } else if (mod && e.shiftKey && key === 'u') {
+        e.preventDefault();
+        if (s.prefs.root) toggleUnresolved();
+      } else if (mod && key === ',') {
+        e.preventDefault();
+        openSettings();
       } else if (mod && key === 'd') {
         e.preventDefault();
         void toggleFavorite();
@@ -154,6 +171,7 @@ function useGlobalKeys() {
         if (s.tocPopoverOpen) setTocPopover(false);
         else if (s.drawerOpen) setDrawer(false);
         else if (s.find.open) closeFindbar();
+        else if (s.unresolvedOpen) closeUnresolved();
       }
     };
     // Ctrl + wheel zooms.

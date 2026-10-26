@@ -58,7 +58,10 @@ test('read ⇄ edit keeps the same section on screen, and Done saves', async ({ 
 
 test('autosave off: Ctrl+S asks first and only writes on Save', async ({ page, app, ws }) => {
   await page.getByRole('button', { name: 'Edit', exact: true }).click();
-  await page.getByRole('button', { name: 'Autosave' }).click(); // turn it off
+  await page.keyboard.press('Control+,'); // turn autosave off in Settings
+  await page.locator('#settings').getByRole('group', { name: 'Autosave' }).getByText('Off').click();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#settings')).toBeHidden();
   await page.locator('.cm-content').click();
   await page.keyboard.type('Draft ');
   await answerDialogs(app, 1); // "Cancel" in the save confirmation
@@ -155,10 +158,15 @@ test('menus: favorite from the sidebar, folder color, theme', async ({ page, app
   // (Playwright pins prefers-color-scheme for the page, so check what the app tells Electron.)
   const theme = () => app.evaluate(({ nativeTheme }) => nativeTheme.themeSource);
   expect(await theme()).toBe('dark');
-  await page.locator('#theme-btn').click();
-  await page.getByRole('menu').getByText('Light').click();
+  await page.keyboard.press('Control+,');
+  const settings = page.locator('#settings');
+  await expect(settings).toBeVisible();
+  await expect(settings.locator('.setting-folder .path')).toHaveText(/notes$/);
+  await expect(settings.locator('.settings-foot')).toContainText(`Notes Viewer ${JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version}`);
+  await settings.getByRole('group', { name: 'Theme' }).getByText('Light').click();
   await expect.poll(theme).toBe('light');
-  await expect(page.locator('#theme-btn')).toHaveAttribute('title', /Theme: light/);
+  await page.keyboard.press('Escape');
+  await expect(settings).toBeHidden();
 });
 
 test('resizing the window keeps the reading position', async ({ page }) => {
@@ -173,6 +181,48 @@ test('resizing the window keeps the reading position', async ({ page }) => {
   await expect.poll(() => readerTopHeading(page)).toMatch(/Section 1[45]/);
   await page.setViewportSize({ width: 1300, height: 860 });
   await expect.poll(() => readerTopHeading(page)).toMatch(/Section 1[45]/);
+});
+
+test('unresolved: markers across notes, jump to the line', async ({ page }) => {
+  await page.getByRole('button', { name: 'Unresolved (2)' }).click();
+  const region = page.getByRole('region', { name: 'Unresolved' });
+  await expect(region).toContainText('2 in 2 notes');
+  await expect(region.locator('.unres-item')).toHaveText([/Confused.*idk what this means/, /To do.*reconciliation/]);
+  await page.locator('#list').getByText('react').click(); // leaving the page by opening a note
+  await expect(page.locator('body')).not.toHaveClass(/unresolved-open/);
+  await page.keyboard.press('Control+Shift+U');
+  await region.locator('.unres-item').first().click();
+  await expect(page.locator('#note-title')).toHaveText('long');
+  await expect(page.locator('#note-body [data-line="2"]')).toHaveClass(/flash/);
+});
+
+test('export as PDF writes the file the save dialog names', async ({ page, app, ws }) => {
+  const out = path.join(ws.root, 'long.pdf');
+  await app.evaluate(({ dialog }, filePath) => {
+    dialog.showSaveDialog = (async () => ({ canceled: false, filePath })) as typeof dialog.showSaveDialog;
+  }, out);
+  await page.getByRole('button', { name: 'More actions' }).click();
+  await page.getByRole('menuitem', { name: /Export as PDF/ }).click();
+  await expect(page.locator('#toast')).toHaveText('Saved long.pdf');
+  const head = fs.readFileSync(out).subarray(0, 5).toString();
+  expect(head).toBe('%PDF-');
+  expect(fs.statSync(out).size).toBeGreaterThan(20_000);
+});
+
+test('study activity heatmap counts quizzes and focus blocks per day', async ({ page, ws }) => {
+  const today = new Date();
+  const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  fs.writeFileSync(path.join(ws.quizzes, 'activity.json'), JSON.stringify({ [iso]: { focus: 2, sessions: 2 } }));
+  fs.writeFileSync(path.join(ws.quizzes, 'results.jsonl'), JSON.stringify({ at: today.toISOString(), scope: 'note:x', answers: [{ q: 'a#b', r: 'right', ms: 1 }] }) + '\n');
+  await page.getByRole('button', { name: 'Study activity' }).click();
+  const pop = page.getByRole('dialog', { name: 'Study activity' });
+  await expect(pop).toContainText('1 study day · 2 sessions · 2 focus blocks · 1 quiz');
+  await expect(pop.locator('.heat .cell.l2')).toHaveCount(1);
+  await page.keyboard.press('Escape');
+  // The Pomodoro pill shows today's sessions as dots (read on open; the file was written after launch, so open the popover to refresh).
+  await page.getByRole('button', { name: /^pomodoro/i }).click();
+  await expect(page.locator('.pomo-dots span.on')).toHaveCount(2);
+  await expect(page.getByRole('dialog', { name: 'Pomodoro' })).toContainText('2 of 3 today');
 });
 
 test('zoom keeps the reading position', async ({ page }) => {

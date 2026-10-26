@@ -12,7 +12,10 @@ export interface QuizPrefs {
   order: 'random' | 'weak';
 }
 
+export interface PomodoroSettings { focus: number; shortBreak: number; longBreak: number; cycles: number } // minutes, count
+
 export interface AppState {
+  version: string;          // the app's package.json version
   root: string | null;
   lastNote: string | null;
   sidebarCollapsed: boolean;
@@ -22,6 +25,7 @@ export interface AppState {
   favorites: string[];
   folderColors: Record<string, FolderColor>;
   quiz: QuizPrefs | null;
+  pomodoro: PomodoroSettings | null;
 }
 
 export interface NoteListItem { path: string; dir: string; title: string; text: string }
@@ -93,6 +97,7 @@ export interface NotesApi {
   setPref(key: 'zoom', value: number): Promise<void>;
   setPref(key: 'theme', value: Theme): Promise<void>;
   setPref(key: 'quiz', value: QuizPrefs): Promise<void>;
+  setPref(key: 'pomodoro', value: PomodoroSettings): Promise<void>;
   listNotes(): Promise<NoteListItem[]>;
   readNote(relPath: string): Promise<NoteFile>;
   saveNote(relPath: string, content: string, baseMtimeMs: number, opts: { silent: boolean }): Promise<SaveResult>;
@@ -113,6 +118,10 @@ export interface NotesApi {
   setFolderColor(relDir: string, color: FolderColor | ''): Promise<Record<string, FolderColor>>;
   quizLoad(scope: 'note' | 'folder', relPath: string): Promise<QuizData>;
   quizLog(entry: QuizLogEntry): Promise<boolean>;
+  activityBump(kind: 'focus' | 'session'): Promise<{ focus: number; sessions: number }>;
+  activityToday(): Promise<{ focus: number; sessions: number }>;
+  activityGet(): Promise<{ days: Record<string, { focus: number; quizzes: number; sessions: number }> }>;
+  exportPdf(relPath: string): Promise<string | null>;
   createNote(): Promise<string | null>;
   deleteNote(relPath: string): Promise<boolean>;
   confirmDiscard(title: string): Promise<'save' | 'discard' | 'cancel'>;

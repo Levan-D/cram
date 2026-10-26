@@ -25,7 +25,10 @@ export function renderFake(source: string): string {
   }).join('');
 }
 
-export function fakeApi(opts: { notes?: FakeNotes; state?: Partial<AppState>; quiz?: QuizData } = {}): NotesApi {
+export function fakeApi(opts: {
+  notes?: FakeNotes; state?: Partial<AppState>; quiz?: QuizData;
+  activity?: Record<string, { focus: number; quizzes: number; sessions?: number }>; today?: { focus?: number; sessions?: number };
+} = {}): NotesApi {
   const notes: FakeNotes = { ...(opts.notes ?? SAMPLE_NOTES) };
   const mtimes = new Map<string, number>();
   const read = (path: string): NoteFile => {
@@ -33,10 +36,11 @@ export function fakeApi(opts: { notes?: FakeNotes; state?: Partial<AppState>; qu
     return { ...describe(path), source: notes[path]!, mtimeMs: mtimes.get(path) ?? 1, html: renderFake(notes[path]!) };
   };
   let favorites: string[] = opts.state?.favorites ?? [];
+  const today = { focus: 0, sessions: 0, ...opts.today };
   const api = {
     getState: vi.fn(async (): Promise<AppState> => ({
-      root: 'C:/notes', lastNote: null, sidebarCollapsed: false, autosave: true, zoom: 1, theme: 'system',
-      favorites, folderColors: {}, quiz: null, ...opts.state,
+      version: '0.0.0-test', root: 'C:/notes', lastNote: null, sidebarCollapsed: false, autosave: true, zoom: 1, theme: 'system',
+      favorites, folderColors: {}, quiz: null, pomodoro: null, ...opts.state,
     })),
     pickFolder: vi.fn(async () => null),
     setPref: vi.fn(async () => {}),
@@ -66,6 +70,10 @@ export function fakeApi(opts: { notes?: FakeNotes; state?: Partial<AppState>; qu
     setFolderColor: vi.fn(async (dir: string, color: string) => (color ? { [dir]: color } : {})),
     quizLoad: vi.fn(async () => opts.quiz ?? { quizRoot: 'C:/quizzes', files: [], questions: [] }),
     quizLog: vi.fn(async () => true),
+    activityBump: vi.fn(async (kind: 'focus' | 'session') => { today[kind === 'focus' ? 'focus' : 'sessions']++; return { ...today }; }),
+    activityToday: vi.fn(async () => ({ ...today })),
+    activityGet: vi.fn(async () => ({ days: opts.activity ?? {} })),
+    exportPdf: vi.fn(async () => null),
     createNote: vi.fn(async () => null),
     deleteNote: vi.fn(async () => false),
     confirmDiscard: vi.fn(async () => 'cancel' as const),

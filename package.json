@@ -1,7 +1,7 @@
 {
   "name": "notes-viewer",
   "productName": "Notes Viewer",
-  "version": "2.0.1",
+  "version": "2.4.2",
   "description": "Markdown notes viewer & editor.",
   "private": true,
   "type": "module",
@@ -15,7 +15,8 @@
     "test:e2e": "npm run build:renderer && playwright test",
     "start": "npm run build:renderer && electron .",
     "dist": "npm run typecheck && npm test && npm run build:renderer && electron-builder --win portable",
-    "icon": "electron scripts/make-icon.mjs"
+    "icon": "electron scripts/make-icon.mjs",
+    "quiz": "node scripts/quiz.mjs"
   },
   "dependencies": {
     "highlight.js": "11.12.0",

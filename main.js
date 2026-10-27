@@ -25,13 +25,23 @@ const configPath = () => path.join(app.getPath('userData'), 'config.json');
 let config = {};
 
 function loadConfig() {
-  try { config = JSON.parse(fs.readFileSync(configPath(), 'utf8')); } catch { config = {}; }
+  try { config = JSON.parse(fs.readFileSync(configPath(), 'utf8')); } catch (err) {
+    keepCorrupt(configPath(), err);
+    config = {};
+  }
 }
 function saveConfig() {
   try {
     fs.mkdirSync(path.dirname(configPath()), { recursive: true });
-    fs.writeFileSync(configPath(), JSON.stringify(config, null, 2));
+    atomicWrite(configPath(), JSON.stringify(config, null, 2));
   } catch (err) { console.error('Could not save config:', err.message); }
+}
+
+// A JSON file that exists but doesn't parse is moved aside (<name>.corrupt) instead of being
+// silently overwritten with an empty one on the next write.
+function keepCorrupt(file, err) {
+  if (!(err instanceof SyntaxError)) return;
+  try { fs.renameSync(file, `${file}.corrupt`); } catch { /* best effort */ }
 }
 
 // ---------- notes ----------
@@ -70,7 +80,7 @@ function listNotes(root) {
     let text = '';
     try {
       const full = path.join(root, rel);
-      if (fs.statSync(full).size <= MAX_SEARCH_BYTES) text = fs.readFileSync(full, 'utf8');
+      if (fs.statSync(full).size <= MAX_SEARCH_BYTES) text = readText(full).text;
     } catch { /* unreadable: still list it */ }
     return { ...describe(rel), text };
   });
@@ -146,10 +156,26 @@ function renderWithLines(marked, source) {
   return html;
 }
 
+// Notes are UTF-8. The app works on "\n" text without a BOM; a file's BOM and CRLF line endings
+// are put back on save (encodeText), so a save never rewrites every line of a Windows file.
+// A file that isn't valid UTF-8 (ANSI, UTF-16) can be read, lossily, but is never saved over.
+const utf8 = new TextDecoder('utf-8', { fatal: true });
+function readText(full) {
+  const buf = fs.readFileSync(full);
+  const bom = buf[0] === 0xef && buf[1] === 0xbb && buf[2] === 0xbf;
+  let text;
+  let valid = true;
+  try { text = utf8.decode(buf); } catch { text = new TextDecoder('utf-8').decode(buf); valid = false; } // decode() drops the BOM
+  const crlf = text.includes('\r\n');
+  return { text: crlf ? text.replace(/\r\n/g, '\n') : text, bom, crlf, valid };
+}
+const encodeText = (text, { bom, crlf }) => (bom ? '﻿' : '') + (crlf ? text.replace(/\n/g, '\r\n') : text);
+const notUtf8 = (full) => new Error(`"${path.basename(full)}" isn't UTF-8, so it wasn't saved (that would garble its non-English characters). Convert it to UTF-8 first, e.g. in VS Code: Save with Encoding.`);
+
 function readNote(root, rel) {
   const full = resolveInside(root, rel);
   const norm = toPosix(path.relative(fs.realpathSync(root), full));
-  const source = fs.readFileSync(full, 'utf8');
+  const source = readText(full).text;
   return { ...describe(norm), source, mtimeMs: fs.statSync(full).mtimeMs, html: renderNote(root, norm, source) };
 }
 
@@ -170,10 +196,19 @@ function lineDelta(before, after) {
 }
 
 // Write via a temp file + rename so a crash mid-write can't leave a half-written note.
+// On Windows the rename fails for a moment while OneDrive, antivirus or the search indexer has
+// the file open (EPERM / EBUSY / EACCES), so it retries for up to ~1 s before giving up.
+const sleepSync = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 function atomicWrite(full, content) {
   const tmp = path.join(path.dirname(full), `.${path.basename(full)}.${process.pid}.tmp`);
   fs.writeFileSync(tmp, content, 'utf8');
-  try { fs.renameSync(tmp, full); } catch (err) { fs.rmSync(tmp, { force: true }); throw err; }
+  for (let attempt = 0; ; attempt++) {
+    try { fs.renameSync(tmp, full); return; } catch (err) {
+      if (attempt < 10 && ['EPERM', 'EBUSY', 'EACCES'].includes(err.code)) { sleepSync(100); continue; }
+      fs.rmSync(tmp, { force: true });
+      throw err;
+    }
+  }
 }
 
 let skipSaveConfirm = false; // "don't ask again until restart"
@@ -182,7 +217,9 @@ let skipSaveConfirm = false; // "don't ask again until restart"
 async function saveNote(win, root, rel, content, baseMtimeMs, { silent = false } = {}) {
   const full = resolveInside(root, rel);
   const name = path.basename(full);
-  const disk = fs.readFileSync(full, 'utf8');
+  const file = readText(full);
+  if (!file.valid) throw notUtf8(full);
+  const disk = file.text;
   const mtimeMs = fs.statSync(full).mtimeMs;
 
   // Someone else (git, another editor) changed the file since it was opened.
@@ -220,7 +257,7 @@ async function saveNote(win, root, rel, content, baseMtimeMs, { silent = false }
     if (checkboxChecked) skipSaveConfirm = true;
   }
 
-  atomicWrite(full, content);
+  atomicWrite(full, encodeText(content, file));
   return { saved: true, mtimeMs: fs.statSync(full).mtimeMs };
 }
 
@@ -271,8 +308,8 @@ async function deleteNote(win, root, rel) {
 
 const samePath = (a, b) => path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase();
 
-// Apply fn only outside fenced code blocks, so code samples are never rewritten.
-const outsideCode = (text, fn) => text.split(/(```[\s\S]*?```)/).map((part, i) => (i % 2 ? part : fn(part))).join('');
+// Apply fn only outside code (``` and ~~~ fences, `inline code`), so code samples are never rewritten.
+const outsideCode = (text, fn) => text.split(/(```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\n]*`)/).map((part, i) => (i % 2 ? part : fn(part))).join('');
 
 // Relative markdown links and images: ](path), ](<path with spaces>), optional "title".
 const LINK_RE = /(\]\()(<[^>\n]+>|[^)\s]+)((?:\s+"[^"\n]*")?\))/g;
@@ -287,7 +324,9 @@ function rewriteLinks(source, fromDir, toDir, mapTarget) {
     if (hasScheme(href) || href.startsWith('#') || href.startsWith('/')) return m;
     const cut = href.search(/[?#]/);
     const [p, rest] = cut < 0 ? [href, ''] : [href.slice(0, cut), href.slice(cut)];
-    const target = mapTarget(path.resolve(fromDir, safeDecode(p)));
+    const abs = path.resolve(fromDir, safeDecode(p));
+    const target = mapTarget(abs);
+    if (target === abs && samePath(fromDir, toDir)) return m; // not affected by this move: leave it exactly as written
     const rel = toPosix(path.relative(toDir, target));
     const next = (angled ? rel : encodeURI(rel)) + rest;
     if (next === href) return m;
@@ -330,12 +369,13 @@ async function renameNote(win, root, rel) {
     const full = path.join(realRoot, r);
     if (samePath(full, oldFull)) continue;
     let src;
-    try { src = fs.readFileSync(full, 'utf8'); } catch { continue; }
-    const res = rewriteLinks(src, path.dirname(full), path.dirname(full), mapTarget);
+    try { src = readText(full); } catch { continue; }
+    if (!src.valid) continue; // not UTF-8: never rewritten
+    const res = rewriteLinks(src.text, path.dirname(full), path.dirname(full), mapTarget);
     if (res.count) inbound.push({ full, ...res });
   }
-  const ownSource = fs.readFileSync(oldFull, 'utf8');
-  const own = rewriteLinks(ownSource, path.dirname(oldFull), path.dirname(newFull), mapTarget);
+  const ownFile = readText(oldFull);
+  const own = ownFile.valid ? rewriteLinks(ownFile.text, path.dirname(oldFull), path.dirname(newFull), mapTarget) : { text: '', count: 0 };
   const inboundLinks = inbound.reduce((s, n) => s + n.count, 0);
 
   const plan = [];
@@ -356,8 +396,15 @@ async function renameNote(win, root, rel) {
 
   fs.renameSync(oldFull, newFull);
   if (plan.length && checkboxChecked) {
-    if (own.count) atomicWrite(newFull, own.text);
-    for (const n of inbound) atomicWrite(n.full, n.text);
+    // Re-read each file: it may have been saved (autosave) while the dialog was open.
+    const update = (full, fromDir, toDir) => {
+      const file = readText(full);
+      if (!file.valid) return;
+      const res = rewriteLinks(file.text, fromDir, toDir, mapTarget);
+      if (res.count) atomicWrite(full, encodeText(res.text, file));
+    };
+    if (own.count) update(newFull, path.dirname(oldFull), path.dirname(newFull));
+    for (const n of inbound) update(n.full, path.dirname(n.full), path.dirname(n.full));
   }
   // Keep favorites and "last opened" pointing at the new path.
   const favs = config.favorites?.[root];
@@ -413,7 +460,7 @@ function listImages(root, rel) {
   const relDir = toPosix(path.relative(fs.realpathSync(root), dir)); // shown in the panel header
   if (!fs.existsSync(dir)) return { dir, relDir, images: [] };
   let source = '';
-  try { source = fs.readFileSync(note, 'utf8'); } catch { /* still list */ }
+  try { source = readText(note).text; } catch { /* still list */ }
   const images = fs.readdirSync(dir, { withFileTypes: true })
     .filter((e) => e.isFile() && IMAGE_EXT.has(path.extname(e.name).slice(1).toLowerCase()))
     .map((e) => {
@@ -573,13 +620,13 @@ function loadQuiz(root, scope, rel) {
   for (const note of notes) {
     const quiz = quizPathFor(note);
     let text;
-    try { text = fs.readFileSync(path.join(quizRoot, quiz), 'utf8'); } catch {
+    try { text = readText(path.join(quizRoot, quiz)).text; } catch {
       files.push({ note, quiz, exists: false });
       continue;
     }
     const parsed = parseQuiz(text);
     let noteText = '';
-    try { noteText = fs.readFileSync(path.join(root, note), 'utf8'); } catch { /* listed a moment ago */ }
+    try { noteText = readText(path.join(root, note)).text; } catch { /* listed a moment ago */ }
     const cmp = compareSections(parsed.meta, noteText);
     const outdated = new Set([...cmp.changed, ...cmp.removed]);
     files.push({
@@ -623,7 +670,11 @@ const ACTIVITY = 'activity.json';
 const ACTIVITY_KINDS = ['focus', 'session'];
 const localDay = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const readActivity = (quizRoot) => {
-  try { const v = JSON.parse(fs.readFileSync(path.join(quizRoot, ACTIVITY), 'utf8')); return v && typeof v === 'object' ? v : {}; } catch { return {}; }
+  const file = path.join(quizRoot, ACTIVITY);
+  try { const v = JSON.parse(fs.readFileSync(file, 'utf8')); return v && typeof v === 'object' ? v : {}; } catch (err) {
+    keepCorrupt(file, err);
+    return {};
+  }
 };
 const dayCounts = (v) => ({ focus: Number(v?.focus) || 0, sessions: Number(v?.sessions) || 0 });
 
@@ -640,7 +691,7 @@ function bumpActivity(root, kind) {
   const day = localDay();
   const key = kind === 'focus' ? 'focus' : 'sessions';
   days[day] = { ...(days[day] || {}), [key]: (Number(days[day]?.[key]) || 0) + 1 };
-  fs.writeFileSync(path.join(quizRoot, ACTIVITY), JSON.stringify(days, null, 2) + '\n');
+  atomicWrite(path.join(quizRoot, ACTIVITY), JSON.stringify(days, null, 2) + '\n');
   return dayCounts(days[day]);
 }
 
@@ -712,10 +763,10 @@ let dirty = false;      // renderer reports unsaved edits, so closing the window
 let allowClose = false;
 
 function registerIpc(win) {
-  // Only answer our own page.
+  // Only answer our own page. The #fragment is ignored: clicking an in-page anchor changes it.
+  const pageOf = (url) => safeDecode(url.split('#')[0]).toLowerCase();
   const handle = (channel, fn) => ipcMain.handle(channel, (e, ...args) => {
-    const url = e.senderFrame?.url || '';
-    if (decodeURI(url).toLowerCase() !== decodeURI(INDEX_URL).toLowerCase()) throw new Error('Untrusted sender');
+    if (pageOf(e.senderFrame?.url || '') !== pageOf(INDEX_URL)) throw new Error('Untrusted sender');
     return fn(...args);
   });
 

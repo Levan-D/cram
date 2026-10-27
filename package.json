@@ -1,7 +1,7 @@
 {
   "name": "notes-viewer",
   "productName": "Notes Viewer",
-  "version": "2.4.2",
+  "version": "2.4.3",
   "description": "Markdown notes viewer & editor.",
   "private": true,
   "type": "module",

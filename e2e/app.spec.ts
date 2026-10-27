@@ -74,6 +74,46 @@ test('autosave off: Ctrl+S asks first and only writes on Save', async ({ page, a
   expect(ws.read('long.md')).toContain('Draft ');
 });
 
+test('saving keeps a Windows note as it was: BOM and CRLF line endings', async ({ page, ws }) => {
+  fs.writeFileSync(path.join(ws.notes, 'windows.md'), '﻿# Windows\r\n\r\nWritten in Notepad.\r\n');
+  await page.locator('#list').getByText('windows').click();
+  await expect(page.locator('#note-body h1')).toHaveText('Windows'); // the BOM doesn't hide the heading
+  await page.getByRole('button', { name: 'Edit', exact: true }).click();
+  await page.locator('.cm-content').click();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type('More.');
+  await page.getByRole('button', { name: /^Done/ }).click();
+  await expect(page.locator('body')).toHaveClass(/mode-read/);
+  expect(ws.read('windows.md')).toBe('﻿# Windows\r\n\r\nWritten in Notepad.\r\nMore.');
+});
+
+test("a note that isn't UTF-8 is never saved over", async ({ page, app, ws }) => {
+  const bytes = Buffer.from('# Caf\xe9\n\nLatin-1 text.\n', 'latin1');
+  fs.writeFileSync(path.join(ws.notes, 'latin.md'), bytes);
+  await page.locator('#list').getByText('latin').click();
+  await page.getByRole('button', { name: 'Edit', exact: true }).click();
+  await page.locator('.cm-content').click();
+  await page.keyboard.type('x');
+  await page.getByRole('button', { name: /^Done/ }).click();
+  await expect(page.locator('#save-status')).toContainText("isn't UTF-8");
+  expect(fs.readFileSync(path.join(ws.notes, 'latin.md')).equals(bytes)).toBe(true);
+  await answerDialogs(app, 1); // closing still asks about the unsaved edit: "Don't save"
+});
+
+test('rename updates only the links to the moved note', async ({ page, app, ws }) => {
+  const links = '# Links\n\n[react](./react.md) [heaps](heaps.md) `[code](heaps.md)`\n\n~~~\n[fenced](heaps.md)\n~~~\n';
+  fs.writeFileSync(path.join(ws.notes, 'dsa', 'links.md'), links);
+  await page.locator('#list').getByText('heaps').click();
+  await expect(page.locator('#note-title')).toHaveText('heaps');
+  await app.evaluate(({ dialog }, to) => {
+    dialog.showSaveDialog = (async () => ({ canceled: false, filePath: to })) as typeof dialog.showSaveDialog;
+    dialog.showMessageBox = (async () => ({ response: 0, checkboxChecked: true })) as typeof dialog.showMessageBox;
+  }, path.join(ws.notes, 'dsa', 'heap.md'));
+  await page.keyboard.press('F2');
+  await expect(page.locator('#note-title')).toHaveText('heap');
+  expect(ws.read('dsa/links.md')).toBe(links.replace('[heaps](heaps.md)', '[heaps](heap.md)'));
+});
+
 test('find in note (read) and find & replace (edit)', async ({ page, ws }) => {
   await page.locator('#list').getByText('heaps').click();
   await expect(page.locator('#note-title')).toHaveText('heaps');

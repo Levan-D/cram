@@ -24,7 +24,7 @@ export function fingerprint(text) {
 }
 
 // CRLF and trailing spaces don't count as changes.
-const normalizeLines = (text) => text.replace(/\r\n?/g, '\n').split('\n').map((l) => l.trimEnd());
+const normalizeLines = (text) => text.replace(/^﻿/, '').replace(/\r\n?/g, '\n').split('\n').map((l) => l.trimEnd());
 
 export const quizPathFor = (noteRel) => noteRel.replace(/\.md$/i, '') + '.quiz.md';
 export const notePathFor = (quizRel) => quizRel.replace(/\.quiz\.md$/i, '.md');
@@ -104,7 +104,7 @@ function parseFront(block) {
 //      answers: [string], explain, line }], errors: [{ line, msg }], warnings: [{ line, msg }] }
 // Line numbers are 1-based, for messages.
 export function parseQuiz(text) {
-  const src = text.replace(/\r\n?/g, '\n');
+  const src = text.replace(/^﻿/, '').replace(/\r\n?/g, '\n'); // a BOM (PowerShell 5.1, Notepad) would hide the front matter
   const front = src.match(FRONT);
   const meta = front ? parseFront(front[1]) : parseFront('');
   const offset = front ? front[0].split('\n').length - 1 : 0;

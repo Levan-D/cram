@@ -5,7 +5,7 @@
 import { create } from 'zustand';
 import { api, type PomodoroSettings } from './api';
 import { useApp } from './store';
-import { toast } from './actions';
+import { hooks, toast } from './actions';
 import { chime, type Cue } from './lib/chime';
 
 // A run is ~1.5 h (3 × 25 + 2 × 5 + 10 = 95 min); three a day is a full study day.
@@ -53,6 +53,7 @@ export const sessionsToday = (s = get()) => (s.today.date === localDay() ? s.tod
 export function refreshToday() {
   return api.activityToday().then((t) => set({ today: { date: localDay(), ...t } }), () => {});
 }
+hooks.refreshToday = refreshToday;
 // The number this run is (or will be) for today.
 export const sessionNumber = (s = get()) => Math.min(SESSIONS_TARGET + 1, sessionsToday(s) + (s.counted || !s.phase ? 0 : 1));
 

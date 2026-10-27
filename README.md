@@ -2,7 +2,7 @@
 
 Small markdown reader + editor for a folder of notes, built for studying: read ⇄ edit that stays on the same paragraph, quizzes generated from the notes, a Pomodoro with daily sessions, an "unresolved" list of everything you flagged `???` / `todo`, a study heatmap, export to PDF. Pick a folder once (remembered), browse or search on the left, read or edit on the right. Follows the OS light/dark theme and works down to a quarter-screen column. Windows; Electron.
 
-**Use it:** run `dist/NotesViewer-2.4.2-portable.exe`. It's a single file, so copy it anywhere. Windows SmartScreen may warn the first time because it's unsigned: "More info" → "Run anyway". No exe? `npm install` then `npm start` (Node 24), or `npm run dist` to build your own.
+**Use it:** run `dist/NotesViewer-2.4.3-portable.exe`. It's a single file, so copy it anywhere. Windows SmartScreen may warn the first time because it's unsigned: "More info" → "Run anyway". No exe? `npm install` then `npm start` (Node 24), or `npm run dist` to build your own.
 
 It never writes outside your notes folder except for quiz logs in a `quizzes/` folder next to it, and it asks before every overwrite or delete (see Safety).
 
@@ -81,7 +81,7 @@ It never writes outside your notes folder except for quiz logs in a `quizzes/` f
 | New note | Only inside the notes folder; never overwrites an existing file. |
 | Rename / move | Only within the notes folder; never overwrites. Shows exactly which links would break (other notes linking here, relative links/images inside the note) and offers to update them; links inside code blocks are never touched. |
 
-Writes are atomic (temp file + rename), so a crash can't leave a half-written note.
+Writes are atomic (temp file + rename, retried while OneDrive or antivirus briefly holds the file), so a crash can't leave a half-written note. Saves keep the file's line endings (CRLF stays CRLF) and BOM, and a note that isn't UTF-8 (old ANSI or UTF-16 files) opens but is never saved over: convert it to UTF-8 first.
 
 ## Shortcuts
 

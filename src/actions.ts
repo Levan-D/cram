@@ -344,11 +344,12 @@ export async function folderMenu(dir: string, at: { x: number; y: number }) {
   else if (choice?.startsWith('color:')) set({ folderColors: await api.setFolderColor(dir, choice.slice(6) as FolderColor | '') });
 }
 
-// The quiz registers itself here (it imports actions, so actions can't import it).
+// The quiz and the Pomodoro register themselves here (they import actions, so actions can't import them).
 export const hooks = {
   openQuiz: async (_kind: 'note' | 'folder', _rel: string) => {},
   hideQuiz: () => {},
   closeQuiz: () => {},
+  refreshToday: async () => {},
 };
 
 // ---------- opening notes ----------
@@ -491,7 +492,6 @@ export function followLink(href: string) {
 export async function openNoteAtLine(path: string, line: number) {
   if (!(await openNote(path))) return;
   if (get().mode === 'edit') { refs.editor?.scrollToLine(line, { cursor: true }); return; }
-  if (!line) return;
   scrollReadTo(line);
   if (refs.reader) refs.reader.scrollTop -= 20; // a little context above
   const blocks = [...(refs.noteBody?.querySelectorAll<HTMLElement>('[data-line]') ?? [])];
@@ -688,9 +688,18 @@ export async function exitEdit() {
 
 // With autosave on, saves are silent (no confirm every 10 s) unless autosave is paused
 // because the file changed on disk; then the next save asks before overwriting.
-export async function save({ auto = false } = {}): Promise<boolean> {
+// A save asked for while another is running (Done or Ctrl+S during an autosave) waits for it,
+// then saves whatever is in the editor by then.
+let saveInFlight: Promise<boolean> | null = null;
+export async function save(opts: { auto?: boolean } = {}): Promise<boolean> {
+  while (saveInFlight) await saveInFlight;
+  saveInFlight = saveNow(opts);
+  try { return await saveInFlight; } finally { saveInFlight = null; }
+}
+
+async function saveNow({ auto = false } = {}): Promise<boolean> {
   const s = get();
-  if (s.mode !== 'edit' || !s.current || s.saving || !refs.editor) return false;
+  if (s.mode !== 'edit' || !s.current || !refs.editor) return false;
   const editor = refs.editor;
   const text = editor.text;
   const silent = autosaveOn() && !s.autosavePaused;
@@ -834,9 +843,11 @@ export function bannerDismiss() {
 
 export async function changeFolder() {
   if (!(await guardUnsaved())) return;
+  // Close the quiz before switching: closing logs its answers, and they belong to the old folder.
+  hooks.closeQuiz();
   if (!(await api.pickFolder())) return;
-  hooks.closeQuiz(); // its questions belong to the old folder
   await start();
+  await hooks.refreshToday(); // the Pomodoro's "today" counts are per folder
 }
 
 export async function start() {

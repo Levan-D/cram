@@ -55,7 +55,7 @@ export function Settings() {
       </section>
 
       <footer className="settings-foot small muted">
-        <span>{`Notes Viewer ${prefs.version || ''}`.trim()}</span>
+        <span>{`Cram ${prefs.version || ''}`.trim()}</span>
         <span>{`© ${new Date().getFullYear()} Levan D · MIT License`}</span>
       </footer>
     </dialog>

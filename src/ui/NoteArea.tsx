@@ -17,7 +17,7 @@ export function NoteArea() {
   return (
     <div id="body">
       <section id="welcome" hidden={view !== 'welcome'}>
-        <h1>Notes Viewer</h1>
+        <h1>Cram</h1>
         <p>Pick the folder that holds your markdown notes. It will be remembered.</p>
         <button id="choose-folder" type="button" className="primary-btn" onClick={() => void changeFolder()}>Choose notes folder</button>
       </section>

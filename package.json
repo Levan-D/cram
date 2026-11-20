@@ -1,8 +1,8 @@
 {
-  "name": "notes-viewer",
-  "productName": "Notes Viewer",
+  "name": "cram",
+  "productName": "Cram",
   "version": "3.0.0",
-  "description": "Markdown notes reader and editor for studying: quizzes, Pomodoro, unresolved list, study heatmap.",
+  "description": "Study from your own markdown notes: reader, lossless editor, AI-made quizzes, Pomodoro, study heatmap.",
   "author": "Levan D",
   "private": true,
   "type": "module",
@@ -58,8 +58,8 @@
     "zustand": "5.0.16"
   },
   "build": {
-    "appId": "local.notes-viewer",
-    "productName": "Notes Viewer",
+    "appId": "local.cram",
+    "productName": "Cram",
     "directories": {
       "output": "dist"
     },
@@ -89,7 +89,7 @@
       "icon": "assets/icon.png"
     },
     "portable": {
-      "artifactName": "NotesViewer-${version}-portable.exe"
+      "artifactName": "Cram-${version}-portable.exe"
     },
     "nsis": {
       "oneClick": false,
@@ -97,10 +97,10 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Notes Viewer",
+      "shortcutName": "Cram",
       "runAfterFinish": true,
       "deleteAppDataOnUninstall": false,
-      "artifactName": "NotesViewer-${version}-setup.exe"
+      "artifactName": "Cram-${version}-setup.exe"
     },
     "publish": null
   }

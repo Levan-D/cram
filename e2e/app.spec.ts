@@ -41,7 +41,7 @@ test('read ⇄ edit keeps the same section on screen, and Done saves', async ({ 
 
   // Type at the cursor (it lands where you were reading).
   await page.keyboard.type('EDITED ');
-  await expect(page).toHaveTitle('• long - Notes Viewer');
+  await expect(page).toHaveTitle('• long - Cram');
 
   // Scroll elsewhere in the editor, then Done → reading continues from the same section.
   // Let CodeMirror finish keeping the cursor in view after typing, then scroll away.
@@ -202,7 +202,7 @@ test('menus: favorite from the sidebar, folder color, theme', async ({ page, app
   const settings = page.locator('#settings');
   await expect(settings).toBeVisible();
   await expect(settings.locator('.setting-folder .path')).toHaveText(/notes$/);
-  await expect(settings.locator('.settings-foot')).toContainText(`Notes Viewer ${JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version}`);
+  await expect(settings.locator('.settings-foot')).toContainText(`Cram ${JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version}`);
   await settings.getByRole('group', { name: 'Theme' }).getByText('Light').click();
   await expect.poll(theme).toBe('light');
   await page.keyboard.press('Escape');

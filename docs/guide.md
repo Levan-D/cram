@@ -1,4 +1,4 @@
-# Notes Viewer: user guide
+# Cram: user guide
 
 Everything the app does, in detail. For install and an overview see the [README](../README.md).
 
@@ -6,7 +6,7 @@ Everything the app does, in detail. For install and an overview see the [README]
 
 **Finding notes**
 - **Folder tree** in the sidebar (collapsible; remembers what you collapsed). Dot-folders (`.git`, `.claude`, …) and `node_modules` are skipped.
-- **Favorites** (⋯ menu, right-click, or `Ctrl+D`) pinned at the top of the sidebar; a ★ next to the title marks them. Stored per notes folder in the app's own settings file, `%APPDATA%/Notes Viewer/config.json`, never in your notes.
+- **Favorites** (⋯ menu, right-click, or `Ctrl+D`) pinned at the top of the sidebar; a ★ next to the title marks them. Stored per notes folder in the app's own settings file, `%APPDATA%/Cram/config.json`, never in your notes.
 - **Back / forward** between notes: ← → buttons, `Alt+←` / `Alt+→`, or the mouse side buttons. Each note **remembers where you were** (opening from search still jumps to the match).
 - **Right-click a note** (or the ⋯ button, far right of the toolbar): open, favorite, rename / move, quiz, show in Explorer, open in VS Code, delete. Right-click a folder for colors, quiz this folder, Explorer / VS Code. All menus are drawn by the app (icons, light/dark), including the spelling / cut-copy-paste menu in the editor.
 - **Folder colors**: right-click a folder → Color (8 colors or None). The name is tinted and its notes get a guide line; subfolders inherit unless they have their own color. Stored in the app's settings, not in your notes. Right-click also offers Show in Explorer / Open in VS Code.

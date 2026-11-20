@@ -1,4 +1,4 @@
-// Notes Viewer: main process. Owns all file access; the renderer never touches the disk.
+// Cram: main process. Owns all file access; the renderer never touches the disk.
 // Every write is guarded: saves confirm before overwriting (and detect on-disk changes),
 // new notes never overwrite an existing file, and deletes go to the Recycle Bin after a warning.
 import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeTheme, screen, shell } from 'electron';
@@ -24,7 +24,19 @@ const MAX_SEARCH_BYTES = 2 * 1024 * 1024; // don't load huge files into the sear
 const configPath = () => path.join(app.getPath('userData'), 'config.json');
 let config = {};
 
+// Before 3.0 the app was called "Notes Viewer", so its settings lived in %APPDATA%\Notes Viewer.
+// The first time Cram starts without settings of its own, it copies those over (the old file stays).
+function migrateOldConfig() {
+  try {
+    const old = path.join(app.getPath('appData'), 'Notes Viewer', 'config.json');
+    if (fs.existsSync(configPath()) || !fs.existsSync(old)) return;
+    fs.mkdirSync(path.dirname(configPath()), { recursive: true });
+    fs.copyFileSync(old, configPath());
+  } catch (err) { console.error('Could not bring over the old settings:', err.message); }
+}
+
 function loadConfig() {
+  migrateOldConfig();
   try { config = JSON.parse(fs.readFileSync(configPath(), 'utf8')); } catch (err) {
     keepCorrupt(configPath(), err);
     config = {};
@@ -228,7 +240,7 @@ async function saveNote(win, root, rel, content, baseMtimeMs, { silent = false }
     const { response } = await dialog.showMessageBox(win, {
       type: 'warning',
       title: 'File changed on disk',
-      message: `"${name}" was changed outside Notes Viewer since you opened it.`,
+      message: `"${name}" was changed outside Cram since you opened it.`,
       detail: 'Saving will overwrite those outside changes with your version.',
       buttons: ['Overwrite with my version', 'Cancel'],
       defaultId: 1,
@@ -279,7 +291,7 @@ async function createNote(win, root) {
     return null;
   }
   if (fs.existsSync(full)) {
-    await dialog.showMessageBox(win, { type: 'error', title: 'New note', message: `"${path.basename(full)}" already exists.`, detail: 'Notes Viewer never overwrites an existing file when creating a note. Pick another name.' });
+    await dialog.showMessageBox(win, { type: 'error', title: 'New note', message: `"${path.basename(full)}" already exists.`, detail: 'Cram never overwrites an existing file when creating a note. Pick another name.' });
     return null;
   }
   const title = path.basename(full).replace(/\.md$/i, '').replace(/[-_]+/g, ' ');
@@ -357,7 +369,7 @@ async function renameNote(win, root, rel) {
   if (newFull === oldFull) return null;
   const caseOnly = samePath(newFull, oldFull);
   if (fs.existsSync(newFull) && !caseOnly) {
-    await dialog.showMessageBox(win, { type: 'error', title: 'Rename or move', message: `"${toPosix(path.relative(realRoot, newFull))}" already exists.`, detail: 'Notes Viewer never overwrites an existing note. Pick another name.' });
+    await dialog.showMessageBox(win, { type: 'error', title: 'Rename or move', message: `"${toPosix(path.relative(realRoot, newFull))}" already exists.`, detail: 'Cram never overwrites an existing note. Pick another name.' });
     return null;
   }
   const newRel = toPosix(path.relative(realRoot, newFull));
@@ -960,7 +972,7 @@ function createWindow() {
     ...visibleBounds(saved.bounds),
     minWidth: 320,
     minHeight: 360,
-    title: 'Notes Viewer',
+    title: 'Cram',
     icon: fs.existsSync(ICON) ? ICON : undefined,
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#1e1f22' : '#fbfbfa',
     show: false,
@@ -1050,7 +1062,7 @@ function smoke(folder) {
 // Installed (NSIS) build: Windows ties notifications and taskbar grouping to the Start menu
 // shortcut's AppUserModelID, which electron-builder sets to the appId. The portable exe has no
 // shortcut, so it keeps Electron's default.
-if (process.platform === 'win32' && app.isPackaged && !process.env.PORTABLE_EXECUTABLE_DIR) app.setAppUserModelId('local.notes-viewer');
+if (process.platform === 'win32' && app.isPackaged && !process.env.PORTABLE_EXECUTABLE_DIR) app.setAppUserModelId('local.cram');
 
 app.whenReady().then(() => {
   if (process.env.NOTES_VIEWER_SMOKE) return smoke(process.env.NOTES_VIEWER_SMOKE);

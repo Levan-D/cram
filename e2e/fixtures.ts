@@ -68,11 +68,11 @@ export function makeWorkspace(config: Record<string, unknown> = {}): Workspace {
   return { root, notes, quizzes, userData, read: (rel) => fs.readFileSync(path.join(notes, rel), 'utf8') };
 }
 
-export async function launch(ws: Workspace): Promise<{ app: ElectronApplication; page: Page }> {
+export async function launch(ws: Workspace, env: Record<string, string> = {}): Promise<{ app: ElectronApplication; page: Page }> {
   const app = await electron.launch({
     args: [path.join(APP_DIR, 'e2e', 'launch.mjs')],
     cwd: APP_DIR,
-    env: { ...process.env, NV_USERDATA: ws.userData },
+    env: { ...process.env, NV_USERDATA: ws.userData, ...env },
   });
   const page = await app.firstWindow();
   await page.setViewportSize({ width: 1300, height: 860 });

@@ -1,4 +1,6 @@
-# Notes Viewer
+<img src="assets/icon.png" width="96" alt="Cram icon: an overstuffed orange notebook">
+
+# Cram
 
 A desktop app for studying from your own markdown notes. Point it at a folder of `.md` files and you get a clean reader, a lossless editor, full-text search, quizzes generated from your notes, a Pomodoro timer and a study heatmap. Windows, built with Electron, React and TypeScript.
 
@@ -19,14 +21,14 @@ A desktop app for studying from your own markdown notes. Point it at a folder of
 
 The [user guide](docs/guide.md) covers every feature, the safety rules and the keyboard shortcuts.
 
-## Download
+## Install
 
-Get the latest build from [Releases](https://github.com/Levan-D/notes-viewer/releases/latest) (Windows 10/11, 64-bit):
+Windows 10/11, 64-bit. Build it from source (see [Development](#development)): `npm run dist` puts two files in `dist/`:
 
-- **`NotesViewer-<version>-setup.exe`**: installs for your user (no admin), adds Start menu and desktop shortcuts, and uninstalls from *Settings → Apps*.
-- **`NotesViewer-<version>-portable.exe`**: one file, nothing installed. It starts slower because it unpacks itself on every launch.
+- **`Cram-<version>-setup.exe`**: installs for your user (no admin), adds Start menu and desktop shortcuts, and uninstalls from *Settings → Apps*.
+- **`Cram-<version>-portable.exe`**: one file, nothing installed. It starts slower because it unpacks itself on every launch.
 
-The builds aren't code-signed, so Windows SmartScreen will warn you the first time. Click **More info → Run anyway**.
+The builds aren't code-signed, so if you copy one to another PC, Windows SmartScreen will warn the first time. Click **More info → Run anyway**.
 
 ## Tech
 

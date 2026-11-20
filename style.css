@@ -1,4 +1,4 @@
-/* Notes Viewer: calm neutral palette, light + dark via prefers-color-scheme.
+/* Cram: calm neutral palette, light + dark via prefers-color-scheme.
    Layout breakpoints:  < 760px  sidebar is a slide-over drawer, icon-only toolbar
                         760–1199 sidebar docked, contents as a popover
                         ≥ 1200   sidebar + note + docked contents */

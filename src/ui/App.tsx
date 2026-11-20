@@ -99,7 +99,7 @@ function useWindowTitle() {
   const dirty = useApp((s) => s.dirty);
   const pomo = usePomo((s) => (s.phase ? fmtLeft(msLeft(s)) : '')); // the countdown shows in the taskbar too
   useEffect(() => {
-    const base = title ? `${dirty ? '• ' : ''}${title} - Notes Viewer` : 'Notes Viewer';
+    const base = title ? `${dirty ? '• ' : ''}${title} - Cram` : 'Cram';
     document.title = pomo ? `🍅 ${pomo} · ${base}` : base;
   }, [title, dirty, pomo]);
 }

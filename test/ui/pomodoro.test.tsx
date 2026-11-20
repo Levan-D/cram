@@ -68,7 +68,7 @@ describe('pomodoro', () => {
     await user.click(within(pop).getByRole('button', { name: 'Stop' }));
     expect(usePomo.getState().phase).toBeNull();
     expect(pill()).toHaveTextContent('Pomodoro');
-    expect(document.title).toBe('Notes Viewer');
+    expect(document.title).toBe('Cram');
     // One session today: one dot on, and the session was counted once for the whole run.
     expect(pill().querySelectorAll('.pomo-dots span.on')).toHaveLength(1);
     expect(api.activityBump!.mock.calls.filter((c) => c[0] === 'session')).toHaveLength(1);

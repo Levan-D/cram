@@ -50,7 +50,7 @@ describe('sidebar', () => {
     await renderApp({ state: { lastNote: 'react.md' } });
     await waitFor(() => expect(document.getElementById('note-body')).toHaveTextContent('Keys keep state.'));
     expect(document.body).toHaveClass('has-note', 'mode-read');
-    expect(document.title).toBe('react - Notes Viewer');
+    expect(document.title).toBe('react - Cram');
   });
 });
 
@@ -150,12 +150,12 @@ describe('editing', () => {
     expect(document.body).toHaveClass('mode-edit');
     expect(fakeEditor.load).toHaveBeenLastCalledWith('# React\n\nKeys keep state.\n');
     act(() => fakeEditor.type('# React\n\nKeys keep state. Edited.\n'));
-    expect(document.title).toBe('• react - Notes Viewer');
+    expect(document.title).toBe('• react - Cram');
     expect(screen.getByText('● Unsaved changes')).toBeInTheDocument();
     await user.keyboard('{Control>}s{/Control}');
     await waitFor(() => expect(api.saveNote).toHaveBeenCalledWith('react.md', '# React\n\nKeys keep state. Edited.\n', 1, { silent: true }));
     await waitFor(() => expect(screen.getByText(/^Saved · /)).toBeInTheDocument());
-    expect(document.title).toBe('react - Notes Viewer');
+    expect(document.title).toBe('react - Cram');
   });
 
   it('autosave off: Cancel asks before discarding, and stays when you say no', async () => {

@@ -3,7 +3,7 @@
 Electron 44 + **React 19 + TypeScript** (renderer), **zustand** for state, plain CSS with custom-property design tokens (light/dark, motion, folder colors) at the top of `style.css`. esbuild bundles the renderer; there's no router (one window, views come from state).
 
 - `npm run typecheck`: `tsc` over `src/` and `test/` (strict). `npm run coverage`: unit + component coverage (HTML report in `coverage/`).
-- `npm run dist` type-checks and runs the unit/component tests, then builds `dist/NotesViewer-<version>-setup.exe` (NSIS installer) and `dist/NotesViewer-<version>-portable.exe`. Bump `version` in `package.json` first. Builds are unsigned. If `npm install` skipped Electron's download (install scripts blocked), run `node node_modules/electron/install.js` once.
+- `npm run dist` type-checks and runs the unit/component tests, then builds `dist/Cram-<version>-setup.exe` (NSIS installer) and `dist/Cram-<version>-portable.exe`. Bump `version` in `package.json` first. Builds are unsigned. If `npm install` skipped Electron's download (install scripts blocked), run `node node_modules/electron/install.js` once.
 
 ## Layout
 

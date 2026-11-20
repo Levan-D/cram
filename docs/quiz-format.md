@@ -1,6 +1,6 @@
 # Quiz files
 
-Notes Viewer's quizzes are plain markdown files, one per note, in a `quizzes/` folder next to the notes folder.
+Cram's quizzes are plain markdown files, one per note, in a `quizzes/` folder next to the notes folder.
 
 - `quizzes/<folder>/<note>.quiz.md` mirrors `notes/<folder>/<note>.md`. A folder quiz in the app = every quiz file under that folder.
 - The easy way to make one: open the quiz page for a note and use **Create quiz** (any AI chat writes it, the app checks and saves it). When the note changes, **Update quiz** rewrites only the questions of the changed sections. You can also write or edit these files by hand.

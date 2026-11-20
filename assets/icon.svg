@@ -4,23 +4,48 @@
       <stop offset="0" stop-color="#5b84d6"/>
       <stop offset="1" stop-color="#2c4f9c"/>
     </linearGradient>
-    <linearGradient id="page" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffffff"/>
-      <stop offset="1" stop-color="#e9eef8"/>
+    <linearGradient id="cover" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f7b552"/>
+      <stop offset="1" stop-color="#e08a1e"/>
     </linearGradient>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+    <linearGradient id="pages" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#fffdf6"/>
+      <stop offset="1" stop-color="#efe8d6"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
       <feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#0b1a3a" flood-opacity="0.35"/>
+    </filter>
+    <filter id="sheet-shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#0b1a3a" flood-opacity="0.25"/>
     </filter>
   </defs>
   <rect x="8" y="8" width="240" height="240" rx="56" fill="url(#bg)"/>
+  
+    <g transform="rotate(-16 126 94)" filter="url(#sheet-shadow)">
+      <rect x="76" y="34" width="100" height="120" rx="6" fill="#ffffff"/>
+      <rect x="90" y="50" width="56" height="6" rx="3" fill="#9fb3dc"/>
+      <rect x="90" y="64" width="70" height="6" rx="3" fill="#c9d5ee"/>
+    </g>
+  
+    <g transform="rotate(11 148 90)" filter="url(#sheet-shadow)">
+      <rect x="98" y="30" width="100" height="120" rx="6" fill="#ffffff"/>
+      <rect x="112" y="46" width="56" height="6" rx="3" fill="#9fb3dc"/>
+      <rect x="112" y="60" width="70" height="6" rx="3" fill="#c9d5ee"/>
+    </g>
   <g filter="url(#shadow)">
-    <path d="M78 46h72l40 40v118a12 12 0 0 1-12 12H78a12 12 0 0 1-12-12V58a12 12 0 0 1 12-12z" fill="url(#page)"/>
-    <path d="M150 46v28a12 12 0 0 0 12 12h28z" fill="#c5d3ee"/>
+    <rect x="62" y="70" width="136" height="150" rx="12" fill="#b8640f"/>
+    <path d="M60 64 H184 Q212 68 214 142 Q212 214 184 218 H60 Z" fill="url(#pages)"/>
+    <path d="M186 74 Q207 80 208 142 Q207 204 186 210" fill="none" stroke="#d9cfb6" stroke-width="3"/>
+    <path d="M186 90 Q200 96 201 142 Q200 188 186 194" fill="none" stroke="#d9cfb6" stroke-width="3"/>
+    <rect x="196" y="88" width="30" height="16" rx="4" fill="#ffd84d" transform="rotate(8 211 96)"/>
+    <rect x="200" y="124" width="30" height="16" rx="4" fill="#4fc1b0"/>
+    <rect x="194" y="164" width="30" height="16" rx="4" fill="#ff7a9a" transform="rotate(-9 209 172)"/>
+    <rect x="44" y="60" width="140" height="156" rx="14" fill="url(#cover)"/>
+    <rect x="44" y="60" width="22" height="156" rx="11" fill="#c46f12"/>
+    <rect x="80" y="96" width="78" height="34" rx="7" fill="#fffdf6"/>
+    <rect x="90" y="106" width="46" height="6" rx="3" fill="#2c4f9c"/>
+    <rect x="90" y="117" width="58" height="5" rx="2.5" fill="#9fb3dc"/>
+    <path d="M166 62 Q173 138 166 214" fill="none" stroke="#24304d" stroke-width="10" stroke-linecap="round"/>
+    <path d="M118 212 h16 v32 l-8 -8 l-8 8 z" fill="#e04f5f"/>
   </g>
-  <rect x="88" y="104" width="60" height="10" rx="5" fill="#2c4f9c"/>
-  <rect x="88" y="128" width="80" height="8" rx="4" fill="#9fb3dc"/>
-  <rect x="88" y="148" width="72" height="8" rx="4" fill="#9fb3dc"/>
-  <rect x="88" y="168" width="52" height="8" rx="4" fill="#9fb3dc"/>
-  <circle cx="176" cy="180" r="22" fill="#f0a23b"/>
-  <path d="M167 180l6 6 12-13" fill="none" stroke="#ffffff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

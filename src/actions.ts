@@ -17,6 +17,7 @@ import { enhanceNote } from './lib/extras';
 import { errMsg, pagesFor, WORDS_PER_PAGE } from './lib/text';
 import type { ImageItem } from './lib/editor';
 import { isMenuOpen, showMenu, type MenuItem } from './ui/Menu';
+import { ask } from './ui/Ask';
 import { NARROW_QUERY, WIDE_QUERY } from './ui/hooks';
 
 const get = useApp.getState;
@@ -48,9 +49,22 @@ export const setStatus = (text = '', kind: StatusKind = '') => set({ status: { t
 export function setDirty(value: boolean) {
   if (get().dirty !== value) {
     set({ dirty: value });
-    void api.setDirty(value);
+    syncCloseGuard();
   }
   if (value) setStatus('● Unsaved changes', 'dirty');
+}
+
+// Closing the window asks first (requestClose) while there are unsaved edits or a Pomodoro is
+// running. The main process only knows "ask first or not".
+let timerRunning = false;
+let closeGuard = false;
+function syncCloseGuard() {
+  const on = get().dirty || timerRunning;
+  if (on !== closeGuard) { closeGuard = on; void api.setDirty(on); }
+}
+export function setTimerRunning(on: boolean) {
+  timerRunning = on;
+  syncCloseGuard();
 }
 
 export const setBanner = (text: string | null, { reload = true } = {}) => set({ banner: text ? { text, reload } : null });
@@ -764,7 +778,17 @@ export async function guardUnsaved(): Promise<boolean> {
 }
 
 export async function requestClose() {
-  if (await guardUnsaved()) void api.closeWindow();
+  if (!(await guardUnsaved())) return;
+  if (timerRunning) {
+    const choice = await ask({
+      title: 'Stop the Pomodoro?',
+      text: "A timer is running. Closing stops it; a focus block that hasn't finished won't count.",
+      icon: 'tomato',
+      actions: [{ id: 'keep', label: 'Keep running', primary: true }, { id: 'close', label: 'Close anyway', danger: true }],
+    });
+    if (choice !== 'close') return;
+  }
+  void api.closeWindow();
 }
 
 // ---------- create ----------

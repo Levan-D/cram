@@ -62,8 +62,10 @@ Everything the app does, in detail. For install and an overview see the [README]
 
 ### Pomodoro
 
-- A tomato in the sidebar footer. Click it for the settings (focus / short break / long break / number of focus blocks, defaults 25 / 5 / 10 / 3 ≈ 1 h 35 min; three runs make a full study day) and **Start**. While it runs, the footer shows the countdown (red = focus, green = break), the cycle, and a stop button; the window title carries the countdown too, so it's visible in the taskbar.
-- Click the countdown for the details: a ring, the cycle dots, what's next, when the session ends, Pause / Skip / Stop. Phases follow each other on their own.
+- A tomato in the sidebar footer. Click it for the settings (focus / short break / long break / number of focus blocks, defaults 25 / 5 / 10 / 3 ≈ 1 h 25 min; three runs make a full study day) and **Start**. While it runs, the footer shows the countdown (red = focus, green = break), the cycle, and a stop button; the window title carries the countdown too, so it's visible in the taskbar.
+- Breaks only come *between* focus blocks: the run ends when its last block does. The break after every 4th block is the long one, so the long break only applies to runs of 5+ blocks (its setting is greyed out below that).
+- Click the countdown for the details: a ring, the cycle dots, what's next, when the session ends, Pause / Skip / Stop. Phases follow each other on their own and keep exact time while the window is minimized.
+- If the computer sleeps mid-run, the timer pauses where it was instead of counting the sleep as focus. Closing the window while a timer runs asks first.
 - Each phase end plays a soft chime (three different ones: focus done, break over, session complete; quiet, middle register) and shows a Windows notification.
 
 ## Safety

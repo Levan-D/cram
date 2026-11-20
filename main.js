@@ -82,6 +82,29 @@ function listMarkdown(root) {
   return out.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base', numeric: true }));
 }
 
+// Why a folder can't be the notes folder, or null if it can. The whole folder is walked on
+// every refresh, so a drive or a user folder would freeze the app; and quizzes/ goes next to
+// the notes folder, which for a drive root would be inside it.
+const MAX_FOLDER_ENTRIES = 20_000;
+function folderProblem(dir) {
+  const full = path.resolve(dir);
+  const pick = 'Pick the folder that holds your notes instead.';
+  if (path.parse(full).root === full) return `That's a whole drive. ${pick}`;
+  if (samePath(full, app.getPath('home'))) return `That's your whole user folder. ${pick}`;
+  let seen = 0;
+  const walk = (d) => {
+    let entries;
+    try { entries = fs.readdirSync(d, { withFileTypes: true }); } catch { return; }
+    for (const e of entries) {
+      if (++seen > MAX_FOLDER_ENTRIES) return;
+      if (e.isDirectory() && !isSkippedDir(e.name)) walk(path.join(d, e.name));
+      if (seen > MAX_FOLDER_ENTRIES) return;
+    }
+  };
+  walk(full);
+  return seen > MAX_FOLDER_ENTRIES ? `That folder has more than ${MAX_FOLDER_ENTRIES.toLocaleString('en-US')} files and folders in it, too many to keep in sync. ${pick}` : null;
+}
+
 function describe(rel) {
   const slash = rel.lastIndexOf('/');
   return { path: rel, dir: slash < 0 ? '' : rel.slice(0, slash), title: rel.slice(slash + 1).replace(/\.md$/i, '') };
@@ -861,6 +884,11 @@ function registerIpc(win) {
     const defaultPath = config.root || undefined;
     const res = await dialog.showOpenDialog(win, { title: 'Choose notes folder', defaultPath, properties: ['openDirectory'] });
     if (res.canceled || !res.filePaths[0]) return null;
+    const problem = folderProblem(res.filePaths[0]);
+    if (problem) {
+      await dialog.showMessageBox(win, { type: 'warning', title: 'Choose notes folder', message: "That folder can't be your notes folder.", detail: `${problem}\n${res.filePaths[0]}`, noLink: true });
+      return null;
+    }
     config.root = res.filePaths[0];
     config.lastNote = null;
     saveConfig();
@@ -982,6 +1010,7 @@ function createWindow() {
       nodeIntegration: false,
       sandbox: true,
       spellcheck: true,
+      backgroundThrottling: false, // the Pomodoro keeps exact time (and chimes on time) while minimized
     },
   });
   if (saved.maximized) win.maximize();
@@ -991,6 +1020,9 @@ function createWindow() {
   const openOutside = (url) => { if (/^(https?|mailto):/i.test(url)) shell.openExternal(url); };
   win.webContents.setWindowOpenHandler(({ url }) => { openOutside(url); return { action: 'deny' }; });
   win.webContents.on('will-navigate', (e, url) => { e.preventDefault(); openOutside(url); });
+
+  // If the page crashed it can't answer request-close, so the window must close without asking.
+  win.webContents.on('render-process-gone', () => { allowClose = true; });
 
   win.on('close', (e) => {
     if (dirty && !allowClose) {

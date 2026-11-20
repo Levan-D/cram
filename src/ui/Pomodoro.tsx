@@ -5,8 +5,8 @@ import { useEffect, useRef } from 'react';
 import type { PomodoroSettings } from '../api';
 import { useApp } from '../store';
 import {
-  usePomo, settings, msLeft, fmtLeft, phaseMinutes, sessionMinutes, sessionLeftMs, nextPhaseLabel, PHASE_LABEL, LIMITS,
-  DEFAULT_POMODORO, SESSIONS_TARGET, sessionsToday, sessionNumber, refreshToday, start, stop, togglePause, skip, setOpen, setSetting, resetSettings,
+  usePomo, settings, msLeft, fmtLeft, phaseMinutes, sessionMinutes, sessionLeftMs, nextPhaseLabel, PHASE_LABEL, LIMITS, LONG_EVERY, hasLongBreak,
+  DEFAULT_POMODORO, SESSIONS_TARGET, sessionsToday, sessionNumber, refreshToday, watchDay, start, stop, togglePause, skip, setOpen, setSetting, resetSettings,
 } from '../pomodoro';
 import { Icon } from './Icon';
 
@@ -17,6 +17,7 @@ const SESSION_WORD = ['', 'ok', 'good', 'sexy'] as const; // 1, 2, 3 sessions
 export function Pomodoro() {
   const s = usePomo();
   useApp((a) => a.prefs.pomodoro); // re-render on settings changes
+  useEffect(watchDay, []);
   const n = settings().cycles;
   const left = msLeft(s);
   const paused = s.pausedLeft != null;
@@ -89,11 +90,11 @@ function Popover() {
         <div className="pomo-settings">
           <Stepper name="focus" label="Focus" unit="min" />
           <Stepper name="shortBreak" label="Short break" unit="min" />
-          <Stepper name="longBreak" label="Long break" unit="min" />
+          <Stepper name="longBreak" label="Long break" unit="min" disabled={!hasLongBreak(p)} hint={`From ${LONG_EVERY + 1} focus blocks: the break after every ${LONG_EVERY}th block is the long one`} />
           <Stepper name="cycles" label="Focus blocks" unit="" />
         </div>
         <p className="small muted pomo-total">
-          {`${p.cycles} × ${p.focus} min focus${p.cycles > 1 ? ` with ${p.shortBreak} min breaks` : ''}, then a ${p.longBreak} min long break ≈ ${fmtTotal(sessionMinutes(p))}.`}
+          {`${p.cycles} × ${p.focus} min focus${p.cycles > 1 ? ` with ${p.shortBreak} min breaks` : ''}${hasLongBreak(p) ? ` and a ${p.longBreak} min long break after every ${LONG_EVERY}th block` : ''} ≈ ${fmtTotal(sessionMinutes(p))}.`}
           <br />
           {`A run with at least one finished focus block is a session: ${sessionsToday(s)} of ${SESSIONS_TARGET} today.`}
         </p>
@@ -137,16 +138,17 @@ function Popover() {
   );
 }
 
-function Stepper({ name, label, unit }: { name: keyof PomodoroSettings; label: string; unit: string }) {
+// disabled: the setting doesn't apply to the current run length (it keeps its value); hint says when it does.
+function Stepper({ name, label, unit, disabled = false, hint }: { name: keyof PomodoroSettings; label: string; unit: string; disabled?: boolean; hint?: string }) {
   const value = settings()[name];
   const [min, max, step] = LIMITS[name];
   return (
-    <div className="pomo-row">
+    <div className={`pomo-row${disabled ? ' off' : ''}`} title={disabled ? hint : undefined}>
       <span className="lbl">{label}</span>
       <span className="stepper">
-        <button type="button" aria-label={`Less ${label.toLowerCase()}`} disabled={value <= min} onClick={() => setSetting(name, value - step)}>−</button>
+        <button type="button" aria-label={`Less ${label.toLowerCase()}`} disabled={disabled || value <= min} onClick={() => setSetting(name, value - step)}>−</button>
         <span className="val">{unit ? `${value} ${unit}` : value}</span>
-        <button type="button" aria-label={`More ${label.toLowerCase()}`} disabled={value >= max} onClick={() => setSetting(name, value + step)}>+</button>
+        <button type="button" aria-label={`More ${label.toLowerCase()}`} disabled={disabled || value >= max} onClick={() => setSetting(name, value + step)}>+</button>
       </span>
     </div>
   );

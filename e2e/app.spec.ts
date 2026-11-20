@@ -114,6 +114,28 @@ test('rename updates only the links to the moved note', async ({ page, app, ws }
   expect(ws.read('dsa/links.md')).toBe(links.replace('[heaps](heaps.md)', '[heaps](heap.md)'));
 });
 
+test('refuses a drive, the user folder or a huge folder as the notes folder', async ({ page, app, ws }) => {
+  const huge = path.join(ws.root, 'huge');
+  fs.mkdirSync(huge);
+  for (let i = 0; i <= 20_000; i++) fs.writeFileSync(path.join(huge, `f${i}.txt`), '');
+  const home = await app.evaluate(({ app: a }) => a.getPath('home'));
+  for (const picked of [path.parse(ws.root).root, home, huge]) {
+    await app.evaluate(({ dialog }, dir) => {
+      const g = globalThis as { refused?: string[] };
+      g.refused = [];
+      dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [dir] })) as typeof dialog.showOpenDialog;
+      dialog.showMessageBox = (async (_w: unknown, o: { detail?: string }) => { g.refused!.push(o.detail ?? ''); return { response: 0, checkboxChecked: false }; }) as typeof dialog.showMessageBox;
+    }, picked);
+    await page.keyboard.press('Control+,');
+    await page.locator('#settings').getByRole('button', { name: 'Change…' }).click();
+    await expect.poll(() => app.evaluate(() => (globalThis as { refused?: string[] }).refused ?? [])).toEqual([expect.stringMatching(/whole drive|whole user folder|more than 20,000/)]);
+    await page.keyboard.press('Escape');
+  }
+  // Still on the old folder.
+  await expect(page.locator('#note-title')).toHaveText('long');
+  await expect(page.locator('#list').getByText('heaps')).toBeVisible();
+});
+
 test('find in note (read) and find & replace (edit)', async ({ page, ws }) => {
   await page.locator('#list').getByText('heaps').click();
   await expect(page.locator('#note-title')).toHaveText('heaps');

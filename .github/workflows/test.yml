@@ -1,0 +1,22 @@
+# Typecheck and unit/component tests on every push and pull request. Runs on Windows, the
+# app's only platform. The end-to-end tests (Playwright driving the real Electron app) stay local.
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: windows-latest
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: 1 # the unit tests don't start Electron
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test

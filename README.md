@@ -2,6 +2,8 @@
 
 # Cram
 
+[![Tests](https://github.com/Levan-D/cram/actions/workflows/test.yml/badge.svg)](https://github.com/Levan-D/cram/actions/workflows/test.yml)
+
 A desktop app for studying from your own markdown notes. Point it at a folder of `.md` files and you get a clean reader, a lossless editor, full-text search, quizzes generated from your notes, a Pomodoro timer and a study heatmap. Windows, built with Electron, React and TypeScript.
 
 ![Reading a note: folder tree with colors and favorites, table of contents, tables and highlighted code](docs/screenshots/reading.png)

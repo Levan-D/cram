@@ -44,8 +44,11 @@ describe('quiz start page', () => {
     expect(screen.getByText(/changed since its quiz was written \(Remove\)/)).toBeInTheDocument();
     expect(within(document.querySelector('.quiz-status')!).getByText('lists')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /start 4 questions/i })).toBeEnabled(); // 4 ideas
-    await user.click(screen.getByRole('button', { name: 'Copy /quiz-gen sync' }));
-    expect(api.copyText).toHaveBeenCalledWith('/quiz-gen sync notes/dsa/heaps.md');
+    expect(document.body).not.toHaveTextContent('/quiz-gen'); // no git-gud commands
+    await user.click(screen.getByRole('button', { name: 'Update quiz' }));
+    const dlg = await screen.findByRole('dialog', { name: /quiz for heaps/ });
+    await user.click(within(dlg).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
 
     const scope = within(screen.getByRole('group', { name: 'What to quiz' }));
     expect(scope.getAllByRole('button').map((b) => b.textContent)).toEqual(['This note', 'Folder: dsa', 'All notes']);
@@ -112,7 +115,7 @@ describe('taking a quiz', () => {
       ],
     });
 
-    await user.click(screen.getByRole('button', { name: /copy misses for claude/i }));
+    await user.click(screen.getByRole('button', { name: /^copy misses$/i }));
     const copied = api.copyText!.mock.calls.at(-1)![0] as string;
     expect(copied).toMatch(/^App quiz misses \(heaps, \d{4}-\d\d-\d\d\): 2 of 4/);
     expect(copied).toContain('- [h-1] Where does a new item go?\n  me: At the root · answer: At the end');

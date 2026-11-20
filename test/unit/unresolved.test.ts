@@ -29,8 +29,8 @@ describe('unresolved markers', () => {
     expect(classify('TODO: x').kinds).toEqual(['todo']);
     expect(classify('- [ ] a checklist item').kinds).toEqual([]); // checklists aren't markers
     expect(classify('- [x] done').kinds).toEqual([]);
-    expect(classify('➕ added by Claude').kinds).toEqual(['claude']);
-    expect(classify('➕ idk, do it later').kinds).toEqual(['confused', 'todo', 'claude']);
+    expect(classify('➕ an added line').kinds).toEqual([]); // ➕ isn't a marker
+    expect(classify('idk, do it later').kinds).toEqual(['confused', 'todo']);
     expect(classify('A question? Fine.').kinds).toEqual([]);
     expect(classify('the kidknapper').kinds).toEqual([]); // whole words only
     expect(classify('WTF is this').match).toBe('WTF');
@@ -47,10 +47,9 @@ describe('unresolved markers', () => {
       [8, 'confused', 'Insert', 'Add at the end, bubble up. idk why log n'], // ** and ` stripped
       [9, 'todo', 'Insert', 'TODO: compare with a BST'],
       [16, 'confused', 'Remove ???', 'Remove ???'],
-      [18, 'claude', 'Remove ???', '➕ Claude: the last leaf keeps the tree complete.'],
       [19, 'todo', 'Remove ???', 'Revisit this part later.'],
     ]);
-    expect(countByKind(hits)).toEqual({ confused: 3, todo: 2, claude: 1 });
+    expect(countByKind(hits)).toEqual({ confused: 3, todo: 2 });
   });
 
   it('scans several notes in order', () => {

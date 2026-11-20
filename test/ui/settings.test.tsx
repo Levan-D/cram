@@ -12,7 +12,7 @@ describe('settings dialog', () => {
     const dlg = screen.getByRole('dialog', { name: 'Settings' });
     expect(within(dlg).getByText('C:/notes')).toBeInTheDocument();
     expect(dlg).toHaveTextContent('Notes Viewer 0.0.0-test');
-    expect(dlg).toHaveTextContent(`© ${new Date().getFullYear()} Levan D. All rights reserved.`);
+    expect(dlg).toHaveTextContent(`© ${new Date().getFullYear()} Levan D · MIT License`);
 
     await user.click(within(screen.getByRole('group', { name: 'Theme' })).getByRole('button', { name: 'Dark' }));
     expect(api.setPref).toHaveBeenLastCalledWith('theme', 'dark');

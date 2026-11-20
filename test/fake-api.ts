@@ -1,7 +1,9 @@
 // An in-memory window.notesApi for component tests: a few notes, no dialogs (confirmations
 // resolve the way a test sets them), every call recorded by vi.fn.
 import { vi } from 'vitest';
-import type { AppState, NoteFile, NotesApi, QuizData } from '../src/api';
+import type { AppState, NoteFile, NotesApi, QuizData, QuizReplyOpts } from '../src/api';
+import { buildQuizPrompt, prepareQuiz } from '../quiz-gen.js';
+import { compareSections, noteFingerprint, parseQuiz } from '../quiz-format.js';
 
 export interface FakeNotes { [path: string]: string }
 
@@ -27,6 +29,7 @@ export function renderFake(source: string): string {
 
 export function fakeApi(opts: {
   notes?: FakeNotes; state?: Partial<AppState>; quiz?: QuizData;
+  quizFiles?: Record<string, string>; // note path → its quiz file text (for Create / Update quiz)
   activity?: Record<string, { focus: number; quizzes: number; sessions?: number }>; today?: { focus?: number; sessions?: number };
 } = {}): NotesApi {
   const notes: FakeNotes = { ...(opts.notes ?? SAMPLE_NOTES) };
@@ -37,6 +40,14 @@ export function fakeApi(opts: {
   };
   let favorites: string[] = opts.state?.favorites ?? [];
   const today = { focus: 0, sessions: 0, ...opts.today };
+  // Create / Update quiz: the real quiz-gen.js logic over in-memory files (main.js does the same on disk).
+  const quizFiles: Record<string, string> = { ...opts.quizFiles };
+  const quizCheck = (note: string, o: QuizReplyOpts) => {
+    const oldQuiz = quizFiles[note] ?? null;
+    const res = prepareQuiz({ noteRel: note, noteText: read(note).source, oldQuiz, reply: o.reply, date: '2026-11-20', keepAll: o.keepAll });
+    if (o.noteHash && o.noteHash !== noteFingerprint(notes[note]!)) { res.errors.unshift('The note changed after the prompt was made.'); res.ok = false; }
+    return res;
+  };
   const api = {
     getState: vi.fn(async (): Promise<AppState> => ({
       version: '0.0.0-test', root: 'C:/notes', lastNote: null, sidebarCollapsed: false, autosave: true, zoom: 1, theme: 'system',
@@ -70,6 +81,24 @@ export function fakeApi(opts: {
     setFolderColor: vi.fn(async (dir: string, color: string) => (color ? { [dir]: color } : {})),
     quizLoad: vi.fn(async () => opts.quiz ?? { quizRoot: 'C:/quizzes', files: [], questions: [] }),
     quizLog: vi.fn(async () => true),
+    quizPrompt: vi.fn(async (note: string) => {
+      const noteText = read(note).source;
+      const oldQuiz = quizFiles[note] ?? null;
+      const old = oldQuiz == null ? null : parseQuiz(oldQuiz);
+      const cmp = old ? compareSections(old.meta, noteText) : null;
+      return {
+        note, mode: old ? 'sync' as const : 'new' as const, prompt: buildQuizPrompt({ noteRel: note, noteText, oldQuiz }), noteHash: noteFingerprint(noteText),
+        changed: cmp?.changed ?? [], added: cmp?.added ?? [], removed: cmp?.removed ?? [],
+        removedQuestions: old && cmp ? old.questions.filter((q) => cmp.removed.includes(q.section)).length : 0,
+      };
+    }),
+    quizCheck: vi.fn(async (note: string, o: QuizReplyOpts) => { const { text: _text, ...summary } = quizCheck(note, o); return summary; }),
+    quizSave: vi.fn(async (note: string, o: QuizReplyOpts) => {
+      const { text, ...summary } = quizCheck(note, o);
+      if (summary.ok) quizFiles[note] = text;
+      return { ...summary, saved: summary.ok };
+    }),
+    quizFiles, // test access: what Create / Update quiz saved
     activityBump: vi.fn(async (kind: 'focus' | 'session') => { today[kind === 'focus' ? 'focus' : 'sessions']++; return { ...today }; }),
     activityToday: vi.fn(async () => ({ ...today })),
     activityGet: vi.fn(async () => ({ days: opts.activity ?? {} })),

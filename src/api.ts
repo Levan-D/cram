@@ -73,6 +73,28 @@ export type QuizFileStatus =
 
 export interface QuizData { quizRoot: string; files: QuizFileStatus[]; questions: QuizQuestion[] }
 
+// Create / Update quiz with an AI chat (main.js + quiz-gen.js).
+export interface QuizPromptInfo {
+  note: string;
+  mode: 'new' | 'sync';     // sync: the note has a quiz that's out of date
+  prompt: string;           // to paste into any AI chat
+  noteHash: string;         // the note the prompt was made from (a save checks it's unchanged)
+  changed: string[];
+  added: string[];
+  removed: string[];
+  removedQuestions: number; // questions of removed sections (dropped by any update)
+}
+export interface QuizReplyOpts { reply: string; noteHash?: string; mode?: 'new' | 'sync'; keepAll?: boolean }
+export interface QuizReplyCheck {
+  ok: boolean;
+  errors: string[];
+  warnings: string[];
+  questions: number;        // in the quiz file it would save
+  kept: number;             // old questions kept as they were
+  written: number;          // questions from the reply
+  dropped: number;          // old questions that go
+}
+
 export type QuizResult = 'right' | 'wrong' | 'partly' | 'timeout';
 export interface QuizLogEntry { scope: string; answers: { q: string; r: QuizResult; ms: number }[] }
 
@@ -118,6 +140,9 @@ export interface NotesApi {
   setFolderColor(relDir: string, color: FolderColor | ''): Promise<Record<string, FolderColor>>;
   quizLoad(scope: 'note' | 'folder', relPath: string): Promise<QuizData>;
   quizLog(entry: QuizLogEntry): Promise<boolean>;
+  quizPrompt(relPath: string): Promise<QuizPromptInfo>;
+  quizCheck(relPath: string, opts: QuizReplyOpts): Promise<QuizReplyCheck>;
+  quizSave(relPath: string, opts: QuizReplyOpts): Promise<QuizReplyCheck & { saved: boolean }>;
   activityBump(kind: 'focus' | 'session'): Promise<{ focus: number; sessions: number }>;
   activityToday(): Promise<{ focus: number; sessions: number }>;
   activityGet(): Promise<{ days: Record<string, { focus: number; quizzes: number; sessions: number }> }>;

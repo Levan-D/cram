@@ -134,7 +134,7 @@ export function closeQuiz() {
   set({ view: 'closed', shown: false, run: null, scope: null, data: null });
 }
 
-// The quiz files changed on disk (Claude wrote or re-synced one): refresh the start page.
+// The quiz files changed on disk (saved here, edited by hand, written by a tool): refresh the start page.
 export async function quizzesChanged() {
   const t = get().scope?.current;
   if (t && get().view === 'start') await loadScope(t);

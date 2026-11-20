@@ -13,6 +13,7 @@ import { toast } from '../actions';
 import { api, type QuizQuestion } from '../api';
 import type { QuestionType } from '../../quiz-format.js';
 import { Icon } from './Icon';
+import { openQuizGen } from './QuizGen';
 
 const TYPE_CHIP: Record<QuestionType, string> = { single: 'Pick one', multi: 'Pick several', input: 'Type it', recall: 'Explain' };
 const TYPE_HINT: Record<QuestionType, string> = {
@@ -87,7 +88,7 @@ function StartScreen() {
           <span>{n ? `Start ${n} question${n === 1 ? '' : 's'}` : total ? 'No questions match the settings' : 'Nothing to quiz yet'}</span>
         </button>
         <p className="muted small quiz-go-hint">
-          {n ? `${p.seconds ? `${p.seconds}s per question` : 'No time limit'} · Enter to start` : total ? 'Turn on more question types below.' : 'Ask Claude to generate one: /quiz-gen'}
+          {n ? `${p.seconds ? `${p.seconds}s per question` : 'No time limit'} · Enter to start` : total ? 'Turn on more question types below.' : missing.length ? 'Make one with any AI chat: Create quiz, above.' : 'No notes here.'}
         </p>
 
         <section className="quiz-settings" aria-label="Settings">
@@ -122,7 +123,6 @@ function StartScreen() {
 
 function StatusRows() {
   const data = useQuiz((s) => s.data)!;
-  const target = useQuiz((s) => s.scope)!.current;
   const rows = [];
   for (const f of data.files) {
     if (!f.exists || f.inSync) continue;
@@ -134,7 +134,7 @@ function StatusRows() {
           <b>{noteName(f.note)}</b> changed since its quiz was written
           {changed.length ? ` (${changed.map(lastSection).slice(0, 4).join(', ')}${changed.length > 4 ? ', …' : ''})` : ''}. Questions from changed sections are marked.
         </span>
-        <button type="button" className="small" title="Copy the command to paste to Claude" onClick={() => void copy(`/quiz-gen sync notes/${f.note}`)}>Copy /quiz-gen sync</button>
+        <button type="button" className="small" title="Update the questions of the changed sections with any AI chat, or mark the quiz as up to date" onClick={() => openQuizGen([f.note])}>Update quiz</button>
       </li>,
     );
   }
@@ -143,14 +143,13 @@ function StatusRows() {
       rows.push(
         <li key={`e:${f.note}`} className="warn">
           <Icon name="alert" />
-          <span><b>{noteName(f.note)}</b>: {f.errors} question(s) skipped (format errors; <code>npm run quiz -- check</code>).</span>
+          <span><b>{noteName(f.note)}</b>: {f.errors} question(s) skipped because of format errors in <code>{`quizzes/${f.quiz}`}</code>.</span>
         </li>,
       );
     }
   }
   const missing = data.files.filter((f) => !f.exists);
   if (missing.length) {
-    const cmd = `/quiz-gen ${missing.length === 1 ? `notes/${missing[0]!.note}` : target.rel ? `notes/${target.rel}` : ''}`.trim();
     rows.push(
       <li key="missing" className="muted">
         <Icon name="plus" />
@@ -158,7 +157,7 @@ function StatusRows() {
           No quiz yet for {missing.slice(0, 5).map((f, i) => <span key={f.note}>{i ? ', ' : ''}<b>{noteName(f.note)}</b></span>)}
           {missing.length > 5 ? ` and ${missing.length - 5} more` : ''}.
         </span>
-        <button type="button" className="small" title="Copy the command to paste to Claude" onClick={() => void copy(cmd)}>Copy /quiz-gen</button>
+        <button type="button" className="small" title="Make a quiz for a note with any AI chat" onClick={() => openQuizGen(missing.map((f) => f.note))}>Create quiz</button>
       </li>,
     );
   }
@@ -388,8 +387,8 @@ function ResultsScreen() {
           {misses.length > 0 && <button type="button" className="primary-btn" data-act="retry" onClick={retryMissed}><Icon name="retry" />{`Retry the ${misses.length} missed`}</button>}
           <button type="button" data-act="again" onClick={() => void newQuiz()}><Icon name="play" />New quiz</button>
           {misses.length > 0 && (
-            <button type="button" data-act="copy" title="A summary of what you missed, to paste to Claude" onClick={() => void copy(missesText())}>
-              <Icon name="copy" />Copy misses for Claude
+            <button type="button" data-act="copy" title="A summary of what you missed, to paste into an AI chat or your notes" onClick={() => void copy(missesText())}>
+              <Icon name="copy" />Copy misses
             </button>
           )}
         </div>

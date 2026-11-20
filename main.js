@@ -9,12 +9,12 @@ import { Marked } from 'marked';
 import { markedHighlight } from 'marked-highlight';
 import hljs from 'highlight.js/lib/common';
 import markedKatex from 'marked-katex-extension';
-import { parseQuiz, compareSections, quizPathFor } from './quiz-format.js';
+import { parseQuiz, compareSections, quizPathFor, noteFingerprint } from './quiz-format.js';
+import { buildQuizPrompt, prepareQuiz } from './quiz-gen.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const INDEX_URL = pathToFileURL(path.join(here, 'index.html')).href;
 const ICON = path.join(here, 'assets', 'icon.png');
-const SUGGESTED_FOLDER = path.resolve(here, '..', '..', 'notes'); // the repo's notes/ when run from tools/notes-viewer
 // Our own version (app.getVersion() reports Electron's when the entry is a script, as in the e2e tests).
 const VERSION = (() => { try { return JSON.parse(fs.readFileSync(path.join(here, 'package.json'), 'utf8')).version || ''; } catch { return app.getVersion(); } })();
 const MAX_SEARCH_BYTES = 2 * 1024 * 1024; // don't load huge files into the search index
@@ -571,9 +571,10 @@ function watchFolder(root) {
 // ---------- IPC ----------
 
 // ---------- quizzes ----------
-// quizzes/<note path>.quiz.md, in a "quizzes" folder next to the notes folder (git-gud/notes →
-// git-gud/quizzes). Claude writes them (format: quiz-format.js / quizzes/README.md); the app
-// only reads them, plus appends one line per finished quiz to quizzes/results.jsonl.
+// quizzes/<note path>.quiz.md, in a "quizzes" folder next to the notes folder (my/notes →
+// my/quizzes). Format: docs/quiz-format.md. They're written by hand, by any AI chat through
+// Create / Update quiz (prompt + checked, stamped reply: quiz-gen.js), or by outside tools;
+// besides those the quiz only appends one line per finished quiz to quizzes/results.jsonl.
 
 const quizRootFor = (root) => path.join(path.dirname(root), 'quizzes');
 const RESULTS = 'results.jsonl';
@@ -646,6 +647,57 @@ function loadQuiz(root, scope, rel) {
     }
   }
   return { quizRoot, files, questions };
+}
+
+// ---------- making quizzes with an AI chat (quiz-gen.js) ----------
+// The page copies a prompt, the user pastes the chat's reply back; it's checked here and saved as
+// the note's quiz file, stamped with the note's fingerprints. A new quiz never overwrites a file;
+// updating one keeps the questions of the sections that didn't change.
+
+function quizSource(root, rel) {
+  const full = resolveInside(root, rel);
+  const noteRel = toPosix(path.relative(fs.realpathSync(root), full));
+  const noteText = readText(full).text;
+  const quizFile = path.join(quizRootFor(root), ...quizPathFor(noteRel).split('/'));
+  let oldQuiz = null;
+  try { oldQuiz = readText(quizFile).text; } catch { /* no quiz yet */ }
+  return { noteRel, noteText, quizFile, oldQuiz };
+}
+
+function quizPrompt(root, rel) {
+  const src = quizSource(root, rel);
+  const old = src.oldQuiz == null ? null : parseQuiz(src.oldQuiz);
+  const cmp = old ? compareSections(old.meta, src.noteText) : null;
+  const removed = new Set(cmp?.removed ?? []);
+  return {
+    note: src.noteRel,
+    mode: old ? 'sync' : 'new',
+    prompt: buildQuizPrompt(src),
+    noteHash: noteFingerprint(src.noteText),
+    changed: cmp?.changed ?? [], added: cmp?.added ?? [], removed: [...removed],
+    removedQuestions: old ? old.questions.filter((q) => removed.has(q.section)).length : 0,
+  };
+}
+
+// opts: { reply, noteHash (of the note the prompt was made from), mode ('new' | 'sync'), keepAll }
+function checkQuizReply(root, rel, opts) {
+  const src = quizSource(root, rel);
+  const mode = src.oldQuiz == null ? 'new' : 'sync';
+  const res = prepareQuiz({ ...src, reply: String(opts?.reply ?? ''), date: localDay(), keepAll: Boolean(opts?.keepAll) });
+  const stop = (msg) => { res.errors.unshift(msg); res.ok = false; res.text = ''; };
+  if (opts?.mode && opts.mode !== mode) stop(mode === 'sync' ? 'This note got a quiz in the meantime. Close this and open it again.' : 'The quiz file is gone. Close this and open it again.');
+  else if (opts?.noteHash && opts.noteHash !== noteFingerprint(src.noteText)) stop('The note changed after the prompt was made. Copy the prompt again, so the questions match the note.');
+  return { src, res };
+}
+
+function saveQuizReply(root, rel, opts) {
+  const { src, res } = checkQuizReply(root, rel, opts);
+  const { text, ...summary } = res;
+  if (!res.ok) return { ...summary, saved: false };
+  fs.mkdirSync(path.dirname(src.quizFile), { recursive: true });
+  atomicWrite(src.quizFile, text);
+  if (!quizWatcher) watchQuizzes(root); // the quizzes folder may be brand new
+  return { ...summary, saved: true };
 }
 
 // One line per quiz taken (also when you stop early, with the questions you answered).
@@ -734,7 +786,7 @@ async function exportPdf(win, root, rel) {
   return filePath;
 }
 
-// Quiz files are written by Claude while the app runs: tell the page, so an open start page
+// Quiz files can change while the app runs (edited by hand, written by a tool): tell the page, so an open start page
 // refreshes itself. (Only an existing quizzes folder is watched; one created later shows up
 // after a restart.)
 let quizWatcher = null;
@@ -785,13 +837,16 @@ function registerIpc(win) {
   }));
   handle('quiz-load', (scope, rel) => loadQuiz(requireRoot(), scope === 'note' ? 'note' : 'folder', rel));
   handle('quiz-log', (entry) => logQuiz(requireRoot(), entry));
+  handle('quiz-prompt', (rel) => quizPrompt(requireRoot(), rel));
+  handle('quiz-check', (rel, opts) => { const { text, ...summary } = checkQuizReply(requireRoot(), rel, opts).res; return summary; });
+  handle('quiz-save', (rel, opts) => saveQuizReply(requireRoot(), rel, opts));
   handle('activity-bump', (kind) => bumpActivity(requireRoot(), kind));
   handle('activity-today', () => todayActivity(requireRoot()));
   handle('activity-get', () => getActivity(requireRoot()));
   handle('export-pdf', (rel) => exportPdf(win, requireRoot(), rel));
 
   handle('pick-folder', async () => {
-    const defaultPath = config.root || (fs.existsSync(SUGGESTED_FOLDER) ? SUGGESTED_FOLDER : undefined);
+    const defaultPath = config.root || undefined;
     const res = await dialog.showOpenDialog(win, { title: 'Choose notes folder', defaultPath, properties: ['openDirectory'] });
     if (res.canceled || !res.filePaths[0]) return null;
     config.root = res.filePaths[0];
@@ -991,6 +1046,11 @@ function smoke(folder) {
 }
 
 // ---------- startup ----------
+
+// Installed (NSIS) build: Windows ties notifications and taskbar grouping to the Start menu
+// shortcut's AppUserModelID, which electron-builder sets to the appId. The portable exe has no
+// shortcut, so it keeps Electron's default.
+if (process.platform === 'win32' && app.isPackaged && !process.env.PORTABLE_EXECUTABLE_DIR) app.setAppUserModelId('local.notes-viewer');
 
 app.whenReady().then(() => {
   if (process.env.NOTES_VIEWER_SMOKE) return smoke(process.env.NOTES_VIEWER_SMOKE);

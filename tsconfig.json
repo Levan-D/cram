@@ -14,6 +14,6 @@
     "isolatedModules": true,
     "skipLibCheck": true
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "test/**/*.ts", "test/**/*.tsx", "quiz-format.d.ts", "vitest.config.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "test/**/*.ts", "test/**/*.tsx", "quiz-format.d.ts", "quiz-gen.d.ts", "vitest.config.ts"],
   "exclude": ["node_modules", "e2e"]
 }

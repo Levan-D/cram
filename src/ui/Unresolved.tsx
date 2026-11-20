@@ -1,4 +1,4 @@
-// The "Unresolved" page: every ???, idk, todo, open task and ➕ line across the notes, grouped
+// The "Unresolved" page: every ???, idk and todo line across the notes, grouped
 // by note, filterable by kind. Clicking a line opens the note there. The sidebar button carries
 // the count. Scanning: lib/unresolved.ts.
 import { useMemo, useState } from 'react';
@@ -13,7 +13,7 @@ export function UnresolvedButton() {
   const count = hitsFor(notes).length;
   return (
     <button id="unresolved-btn" type="button" className={`icon-btn${open ? ' active' : ''}`} aria-pressed={open}
-      title="Unresolved: ???, idk, todo, ➕ lines across all notes (Ctrl+Shift+U)" aria-label={`Unresolved (${count})`} onClick={toggleUnresolved}>
+      title="Unresolved: ???, idk, todo lines across all notes (Ctrl+Shift+U)" aria-label={`Unresolved (${count})`} onClick={toggleUnresolved}>
       <Icon name="flag" />
       {count > 0 && <span className="badge">{count > 99 ? '99+' : count}</span>}
     </button>
@@ -56,8 +56,8 @@ export function Unresolved() {
         <p className="unres-guide small muted">
           Write these in a note and they show up here (whole words, any case; code blocks skipped).
           <b> Confused:</b> {code(['???', '??', '?!', 'idk', 'wtf', 'huh', 'no idea', "don't get it", 'confused'])}
-          <b> To do:</b> {code(['todo', 'fixme', 'tbd', 'wip', 'do it later', 'revisit', 'come back to this'])}
-          <b> Claude's:</b> {code(['➕'])} lines Claude added, for you to rewrite in your own words. Click a line to open the note there.
+          <b> To do:</b> {code(['todo', 'fixme', 'tbd', 'wip', 'do it later', 'revisit', 'come back to this'])}.
+          Click a line to open the note there.
         </p>
         {!hits.length && <p className="muted unres-empty">Nothing flagged. Clearing this list is the study list.</p>}
         {groups.map((g) => {

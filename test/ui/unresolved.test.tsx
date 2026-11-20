@@ -15,24 +15,23 @@ describe('unresolved page', () => {
   it('counts markers in the sidebar, lists them by note, filters by kind, and jumps to the line', async () => {
     const { user } = await renderApp({ notes: NOTES, state: { lastNote: 'clean.md' } });
     await waitFor(() => expect(document.getElementById('note-title')).toHaveTextContent('clean'));
-    const btn = screen.getByRole('button', { name: 'Unresolved (4)' });
+    const btn = screen.getByRole('button', { name: 'Unresolved (3)' });
     await user.click(btn);
     expect(document.body).toHaveClass('unresolved-open');
     const page = screen.getByRole('region', { name: 'Unresolved' });
-    expect(page).toHaveTextContent('4 in 2 notes');
-    expect(within(page).getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual(['heapsdsa2', 'react2']);
+    expect(page).toHaveTextContent('3 in 2 notes');
+    expect(within(page).getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual(['heapsdsa2', 'react1']);
     const items = () => [...page.querySelectorAll('.unres-item')];
     expect(items().map((b) => b.textContent)).toEqual([
       'ConfusedA heap is a tree. ??? why completeHeaps',
       'ConfusedBubble up. idk why log nInsert',
       'To doTODO: reconciliation sectionReact',
-      "Claude's ➕➕ Claude: keys are compared per sibling list.React",
     ]);
 
     await user.click(within(page).getByRole('button', { name: 'To do 1' }));
     expect(items()).toHaveLength(1);
-    expect(within(page).getByRole('button', { name: "Claude's ➕ 1" })).toBeEnabled();
-    await user.click(within(page).getByRole('button', { name: 'All 4' }));
+    expect(within(page).queryByRole('button', { name: /➕/ })).toBeNull(); // ➕ lines aren't markers
+    await user.click(within(page).getByRole('button', { name: 'All 3' }));
 
     // Click a line: the note opens, the page closes, the block flashes.
     await user.click(within(page).getByRole('button', { name: /idk why log n/ }));

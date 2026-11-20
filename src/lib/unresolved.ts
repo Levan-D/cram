@@ -1,24 +1,21 @@
-// "Unresolved" markers in notes: the places you flagged as not understood or to do later, and
-// the lines Claude added (➕) that you may want to rewrite in your own words. Unchecked
-// `- [ ]` boxes are deliberately not markers: in these notes they're study checklists.
+// "Unresolved" markers in notes: the places you flagged as not understood or to do later.
+// Unchecked `- [ ]` boxes are deliberately not markers: they're usually study checklists.
 // Pure text scanning over the notes already in memory for search.
 import type { NoteListItem } from '../api';
 
-export type Kind = 'confused' | 'todo' | 'claude';
+export type Kind = 'confused' | 'todo';
 
 export const KIND_INFO: Record<Kind, { label: string; title: string }> = {
   confused: { label: 'Confused', title: '???, idk, wtf, huh, no idea, don\'t get it, confused' },
   todo: { label: 'To do', title: 'todo, fixme, tbd, wip, do it later, revisit, come back to this' },
-  claude: { label: 'Claude\'s ➕', title: 'Lines Claude added to your notes (with your OK)' },
 };
-export const KINDS: Kind[] = ['confused', 'todo', 'claude'];
+export const KINDS: Kind[] = ['confused', 'todo'];
 
 // Deliberate markers only: whole words, any case. Words that also show up in normal prose
 // (lookup, verify, expand, unclear, not sure) flagged half the notes, so they're out.
 // `?` alone would flag every question, so it takes two.
 const CONFUSED = /\?{2,}|\?!|!\?|\bidk\b|\bwtf\b|\bhuh\b|\bconfused\b|\bdon'?t get (?:it|this)\b|\bno idea\b|\bwhat does this (?:even )?mean\b/i;
 const TODO = /\btodo\b|\bfixme\b|\btbd\b|\bwip\b|\bdo (?:it |this )?later\b|\brevisit\b|\bcome back to this\b/i;
-const CLAUDE = /➕/;
 const FENCE = /^\s{0,3}(```|~~~)/;
 const HEADING = /^(#{1,6})\s+(.+?)\s*#*\s*$/;
 
@@ -41,7 +38,6 @@ export function classify(line: string): { kinds: Kind[]; match: string } {
   };
   take('confused', CONFUSED);
   take('todo', TODO);
-  take('claude', CLAUDE);
   return { kinds, match };
 }
 
@@ -55,7 +51,7 @@ export function scanNote(path: string, text: string): Hit[] {
     if (f) { fence = fence === null ? f[1]! : fence === f[1] ? null : fence; return; }
     if (fence !== null) return;
     const h = line.match(HEADING);
-    if (h) { section = h[2]!.replace(/[*_`]/g, '').trim(); if (!CLAUDE.test(line) && !CONFUSED.test(line) && !TODO.test(line)) return; }
+    if (h) { section = h[2]!.replace(/[*_`]/g, '').trim(); if (!CONFUSED.test(line) && !TODO.test(line)) return; }
     const { kinds, match } = classify(line);
     if (!kinds.length) return;
     const text = line
@@ -79,7 +75,7 @@ export function hitsFor(notes: NoteListItem[]): Hit[] {
 }
 
 export const countByKind = (hits: Hit[]): Record<Kind, number> => {
-  const c: Record<Kind, number> = { confused: 0, todo: 0, claude: 0 };
+  const c: Record<Kind, number> = { confused: 0, todo: 0 };
   for (const h of hits) for (const k of h.kinds) c[k]++;
   return c;
 };

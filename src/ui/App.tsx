@@ -27,6 +27,7 @@ import { ImageDialog } from './ImageDialog';
 import { EmojiPopover } from './EmojiPopover';
 import { MenuHost } from './Menu';
 import { AskHost } from './Ask';
+import { QuizGenHost } from './QuizGen';
 
 const isTyping = (el: EventTarget | null) =>
   el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || Boolean((el as Element | null)?.closest?.('.cm-editor'));
@@ -62,6 +63,7 @@ export function App() {
       <Settings />
       <EmojiPopover />
       <MenuHost />
+      <QuizGenHost />
       <AskHost />
       <Toast />
     </>

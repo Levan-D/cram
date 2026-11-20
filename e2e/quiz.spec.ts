@@ -53,3 +53,50 @@ test('Esc asks before stopping a quiz', async ({ page }) => {
   await page.getByRole('dialog').getByRole('button', { name: 'Stop quiz' }).click();
   await expect(page.locator('.quiz-title')).toHaveText('heaps'); // nothing answered → back to the start page
 });
+
+test('create a quiz with an AI chat: copy the prompt, paste the reply, save a stamped file', async ({ app, page, ws }) => {
+  await page.locator('#list').getByText('react').click();
+  await expect(page.locator('#note-title')).toHaveText('react');
+  await page.keyboard.press('Control+Shift+Q');
+  await expect(page.locator('.quiz-status')).toContainText('No quiz yet for react');
+  await page.getByRole('button', { name: 'Create quiz' }).click();
+  const dlg = page.getByRole('dialog', { name: 'Create a quiz for react' });
+
+  await dlg.getByRole('button', { name: 'Copy prompt' }).click();
+  const prompt = await app.evaluate(({ clipboard }) => clipboard.readText());
+  expect(prompt).toContain('Write a quiz for my note "react.md"');
+  expect(prompt).toContain('Keys keep component state.');
+
+  await dlg.getByRole('textbox', { name: 'AI reply' }).fill([
+    'Here is your quiz:', '', '````markdown', '# React', '', '## React', '',
+    '### react-001 · single', 'What do keys keep?', '', '- [x] Component state', '- [ ] Styles', '',
+    '> Keys tell React which item is which, so state stays with the right one.', '````',
+  ].join('\n'));
+  await expect(dlg.getByRole('status')).toHaveText('Ready: 1 question');
+  await dlg.getByRole('button', { name: 'Save quiz' }).click();
+  await expect(dlg).toBeHidden();
+
+  // The start page picks it up (the quizzes folder already existed), and it's on disk, stamped.
+  await expect(page.locator('.quiz-sub')).toHaveText('1 question · 1 note');
+  await expect(page.locator('.quiz-status')).toHaveCount(0);
+  const saved = fs.readFileSync(path.join(ws.quizzes, 'react.quiz.md'), 'utf8');
+  expect(saved).toMatch(/^---\nnote: react\.md\nnote-hash: [0-9a-f]{8}\nsynced: \d{4}-\d\d-\d\d\nsections:\n {2}- [0-9a-f]{8} React\n---\n\n# React\n/);
+  await page.getByRole('button', { name: /Start 1 question/ }).click();
+  await expect(page.locator('.q-prompt')).toHaveText('What do keys keep?');
+});
+
+test('update an out-of-date quiz: keep the questions and mark it up to date', async ({ page, ws }) => {
+  // The fixture quiz was never stamped, so the app sees it as out of date.
+  await page.keyboard.press('Control+Shift+Q');
+  await expect(page.locator('.quiz-status')).toContainText('heaps changed since its quiz was written');
+  await page.getByRole('button', { name: 'Update quiz' }).click();
+  const dlg = page.getByRole('dialog', { name: 'Update the quiz for heaps' });
+  await expect(dlg).toContainText('New: Heaps, Insert, Remove.');
+  await dlg.getByRole('button', { name: 'Keep the questions' }).click();
+  await expect(dlg).toBeHidden();
+  await expect(page.locator('.quiz-status')).toHaveCount(0);
+  const saved = fs.readFileSync(path.join(ws.quizzes, 'dsa', 'heaps.quiz.md'), 'utf8');
+  expect(saved).toContain('note-hash: ');
+  expect(saved).toContain('### h-001 · single'); // questions untouched
+  await expect(page.locator('.quiz-sub')).toHaveText('3 questions · 1 note');
+});

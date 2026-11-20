@@ -9,12 +9,14 @@ import { useQuiz } from '../src/quiz';
 import { usePomo, stop as stopPomodoro } from '../src/pomodoro';
 import { fakeApi } from './fake-api';
 import { fakeEditor } from './fake-editor';
+import { closeQuizGen } from '../src/ui/QuizGen';
 
 export async function renderApp(opts: Parameters<typeof fakeApi>[0] = {}) {
   useApp.setState(initialState(), true);
   useQuiz.setState({ view: 'closed', shown: false, scope: null, data: null, run: null }, true);
   stopPomodoro();
   usePomo.setState({ open: false });
+  closeQuizGen();
   localStorage.clear();
   document.body.className = 'booting';
   window.notesApi = fakeApi(opts);

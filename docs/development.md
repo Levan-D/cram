@@ -4,6 +4,7 @@ Electron 44 + **React 19 + TypeScript** (renderer), **zustand** for state, plain
 
 - `npm run typecheck`: `tsc` over `src/` and `test/` (strict). `npm run coverage`: unit + component coverage (HTML report in `coverage/`).
 - `npm run dist` type-checks and runs the unit/component tests, then builds `dist/Cram-<version>-setup.exe` (NSIS installer) and `dist/Cram-<version>-portable.exe`. Bump `version` in `package.json` first. Builds are unsigned. If `npm install` skipped Electron's download (install scripts blocked), run `node node_modules/electron/install.js` once.
+- **Releasing:** bump `version` in `package.json`, commit, then push a matching tag (`git tag v3.1.0 && git push origin v3.1.0`). The Release workflow builds both exes on Windows and publishes them as a GitHub Release with generated notes. It fails if the tag and `version` don't match.
 
 ## Layout
 

@@ -25,12 +25,14 @@ The [user guide](docs/guide.md) covers every feature, the safety rules and the k
 
 ## Install
 
-Windows 10/11, 64-bit. Build it from source (see [Development](#development)): `npm run dist` puts two files in `dist/`:
+Windows 10/11, 64-bit. Download from the [latest release](https://github.com/Levan-D/cram/releases/latest):
 
 - **`Cram-<version>-setup.exe`**: installs for your user (no admin), adds Start menu and desktop shortcuts, and uninstalls from *Settings → Apps*.
 - **`Cram-<version>-portable.exe`**: one file, nothing installed. It starts slower because it unpacks itself on every launch.
 
-The builds aren't code-signed, so if you copy one to another PC, Windows SmartScreen will warn the first time. Click **More info → Run anyway**.
+The builds aren't code-signed, so Windows SmartScreen will warn the first time you run one. Click **More info → Run anyway**.
+
+To build them yourself, `npm run dist` puts both files in `dist/` (see [Development](#development)).
 
 ## Tech
 
